@@ -7,5 +7,6 @@ MedTrack for iPhone (installable web app)
 
 Notes
 - Your data is saved on the phone. Use Today > Your data > Backup and restore now and then, and paste the text into Notes.
-- This version has no Ask Claude, Plan my day, photo upload or PDF attach. Those work in the Claude version of MedTrack.
+- Ask, Plan my day and Review my week copy a prompt with your numbers. Paste it into a new chat in the Claude app.
+- Photo upload and PDF attach are only in the Claude version of MedTrack.
 - After you replace the files on the host, open the app twice to pick up the update.

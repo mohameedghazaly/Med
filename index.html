@@ -417,9 +417,9 @@ VIEWS.today=()=>{
       row('Nutrition',w.loggedDays?w.nutPct+'% of days on protein':'no data',w.nutPct,toneFor(w.nutPct))+
       row('USMLE fund','+'+usd(w.fund),clamp(pct(w.fund,Math.max(1,(S.money.target-saved+w.fund)/Math.max(1,(left||150)/7))),0,100),'')+
     '</div>'+
-  (samp?'<div style="margin-top:12px"><button type="button" class="btn small" data-act="askPrefill" data-q="Review my last 7 days against the week before. Tell me what went well, what slipped, and set 3 targets for next week.">Review my week with Claude</button></div>':'')+'</section>'+
+  ((samp||handoff)?'<div style="margin-top:12px"><button type="button" class="btn small" data-act="askPrefill" data-q="Review my last 7 days against the week before. Tell me what went well, what slipped, and set 3 targets for next week.">Review my week with Claude</button></div>':'')+'</section>'+
 
-  '<section class="card" id="askCard"'+(samp?'':' hidden')+'><div class="card-head"><h2>Ask Claude</h2><span class="label">uses your numbers</span></div><form data-form="planDay" class="form" style="margin-bottom:12px">'+fld('Hours available today','hours','number','3','min="0.5" max="14" step="0.5" inputmode="decimal" required')+'<button class="btn primary" type="submit">Plan my day</button></form><div class="wrapflex">'+
+  '<section class="card" id="askCard"'+((samp||handoff)?'':' hidden')+'><div class="card-head"><h2>Ask Claude</h2><span class="label">uses your numbers</span></div><form data-form="planDay" class="form" style="margin-bottom:12px">'+fld('Hours available today','hours','number','3','min="0.5" max="14" step="0.5" inputmode="decimal" required')+'<button class="btn primary" type="submit">Plan my day</button></form><div class="wrapflex">'+
     ['I have 3 hours today. What should I study?','I got 62% on my last NBME. What should I focus on?','Build me a roadmap to take Step 1 in 5 months.'].map(q=>'<button type="button" class="btn small" data-act="askPrefill" data-q="'+esc(q)+'">'+esc(q)+'</button>').join('')+
   '</div></section>'+
   '<section class="card"><div class="card-head"><h2>Your data</h2></div><button type="button" class="btn" data-act="openBackup">Backup and restore</button></section>';
@@ -695,6 +695,7 @@ ACT.delEx=el=>{const x=S.gym.days.find(d=>d.id===el.dataset.id);if(x){x.ex.splic
 ACT.delGymDay=el=>{S.gym.days=S.gym.days.filter(d=>d.id!==el.dataset.id);gymDay=null;commit()};
 /* ---------- Ask Claude ---------- */
 let samp=null,askCtl=null;
+const handoff=!window.claude;
 function prevWeek(){
   const pk=weekKeys().map(k=>addDays(k,-7));
   return{studyMin:sum(pk,studyOn),workouts:pk.filter(k=>(S.days[k]||{}).workout).length,uwAccuracyPct:uwAccRange(pk[0],pk[6]),savedUSD:sum(S.money.saved.filter(x=>x.date>=pk[0]&&x.date<=pk[6]),x=>x.amt)};
@@ -714,16 +715,26 @@ function aiContext(){
     gym:{kcalTarget:S.gym.kcal,proteinTarget:S.gym.protein},
     sampleData:S.sample});
 }
+function buildPrompt(q){
+  return 'You are the coach inside MedTrack, the personal dashboard of Dr. Mohamed, a fifth-year Egyptian medical student preparing for the USMLE and a US residency.\n'+
+    'Use his logged numbers below. Lead with the answer, then give short numbered steps with real numbers (hours, question counts, topics). Keep it under 250 words unless he asks for more. Plain text only, no markdown symbols. Reply in the language of his question (Egyptian Arabic if he writes Arabic, keeping medical terms in English). If sampleData is true, say the numbers are examples. For US licensing, visa or state rules, say what to verify with ECFMG or the state medical board instead of stating requirements as certain.\n\nHIS DATA (JSON):\n'+aiContext()+'\n\nQUESTION:\n'+q.trim();
+}
 function openAsk(q){
   sheet('<div class="row between"><h2 style="font-size:18px">Ask Claude</h2><button type="button" class="icon-btn" data-act="closeSheet" aria-label="Close"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>'+
     '<div class="body"><div class="field"><label for="askQ">Your question (English or Arabic)</label><textarea id="askQ" placeholder="I have 3 hours today. What should I study?"></textarea></div>'+
-    '<div class="row"><button type="button" class="btn primary" id="askGo" data-act="runAsk">Ask</button><button type="button" class="btn" id="askStop" data-act="stopAsk" hidden>Stop</button></div>'+
+    (handoff?'<div class="row"><button type="button" class="btn primary" data-act="handoffCopy">Copy prompt</button><a class="btn" href="https://claude.ai/new" target="_blank" rel="noopener" style="text-decoration:none">Open Claude</a></div>':'<div class="row"><button type="button" class="btn primary" id="askGo" data-act="runAsk">Ask</button><button type="button" class="btn" id="askStop" data-act="stopAsk" hidden>Stop</button></div>')+
     '<div class="answer" id="askOut" hidden></div>'+
-    '<div class="small muted">Claude reads the numbers you logged here. Check US licensing, visa and state rules on official sites before you act.</div></div>');
+    '<div class="small muted">'+(handoff?'Tap Copy prompt, then Open Claude and paste it into a new chat. Your logged numbers go with it.':'Claude reads the numbers you logged here.')+' Check US licensing, visa and state rules on official sites before you act.</div></div>');
   const t=$('#askQ');t.value=q||'';t.focus();
 }
 ACT.askPrefill=el=>openAsk(el.dataset.q);
 document.addEventListener('click',e=>{if(e.target.closest('#askBtn'))openAsk('')});
+ACT.handoffCopy=async()=>{
+  const q=(($('#askQ')||{}).value||'').trim();if(!q)return;
+  const text=buildPrompt(q),out=$('#askOut');
+  try{await navigator.clipboard.writeText(text);toast('Copied. Paste it in a new Claude chat.');out.hidden=false;out.textContent='Copied. Now tap Open Claude and paste.'}
+  catch(e){out.hidden=false;out.textContent=text;toast('Press and hold the text to copy it')}
+};
 ACT.stopAsk=()=>{if(askCtl)askCtl.abort()};
 window.__abort=()=>{if(askCtl)askCtl.abort()};
 ACT.runAsk=async()=>{
@@ -731,8 +742,7 @@ ACT.runAsk=async()=>{
   const out=$('#askOut'),go=$('#askGo'),stop=$('#askStop');
   out.hidden=false;out.textContent='Thinking...';go.disabled=true;stop.hidden=false;
   askCtl=new AbortController();
-  const prompt='You are the coach inside MedTrack, the personal dashboard of Dr. Mohamed, a fifth-year Egyptian medical student preparing for the USMLE and a US residency.\n'+
-    'Use his logged numbers below. Lead with the answer, then give short numbered steps with real numbers (hours, question counts, topics). Keep it under 250 words unless he asks for more. Plain text only, no markdown symbols. Reply in the language of his question (Egyptian Arabic if he writes Arabic, keeping medical terms in English). If sampleData is true, say the numbers are examples. For US licensing, visa or state rules, say what to verify with ECFMG or the state medical board instead of stating requirements as certain.\n\nHIS DATA (JSON):\n'+aiContext()+'\n\nQUESTION:\n'+q.trim();
+  const prompt=buildPrompt(q);
   try{
     await samp(prompt,{signal:askCtl.signal,cache:false,onText:({text})=>{if(document.body.contains(out))out.textContent=text}});
   }catch(e){
@@ -766,7 +776,7 @@ ACT.bkRestore=el=>{
 /* ---------- Plan my day ---------- */
 let pendingPlan=[];
 FORMS.planDay=async f=>{
-  if(!samp)return;
+  if(!samp){if(handoff)openAsk('I have '+clamp(+f.hours||3,0.5,14)+' hours today. Build my study plan for today: 4 to 7 tasks with minutes, weakest systems first.');return}
   const hrs=clamp(+f.hours||3,0.5,14);
   pendingPlan=[];
   sheet('<div class="row between"><h2 style="font-size:18px">Plan for '+hrs+' h</h2><button type="button" class="icon-btn" data-act="closeSheet" aria-label="Close"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div><div class="body"><div class="answer" id="planOut">Thinking...</div><div class="row"><button type="button" class="btn primary" id="planAdd" data-act="applyPlan" hidden>Add to today</button></div></div>');
@@ -791,6 +801,7 @@ ACT.applyPlan=()=>{
 };
 
 /* ---------- start ---------- */
+if(handoff)$('#askBtn').hidden=false;
 render();
 (async function connect(){
   const cl=window.claude;if(!cl||!cl.use)return;
