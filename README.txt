@@ -7,6 +7,6 @@ MedTrack for iPhone (installable web app)
 
 Notes
 - Your data is saved on the phone. Use Today > Your data > Backup and restore now and then, and paste the text into Notes.
-- Ask, Plan my day and Review my week copy a prompt with your numbers. Paste it into a new chat in the Claude app.
+- The Ask button opens a ChatGPT assistant. It needs your own OpenAI API key (platform.openai.com/api-keys, billed separately from ChatGPT Plus). The key stays on the phone and is not in the repo or in backups. Without a key you can still copy a prompt.
 - Photo upload and PDF attach are only in the Claude version of MedTrack.
 - After you replace the files on the host, open the app twice to pick up the update.

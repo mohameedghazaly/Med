@@ -103,6 +103,11 @@ input[type=file]{width:100%;font-size:13px}
 .photos figure{margin:0;min-width:0}
 .photos img{display:block;width:100%;max-width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:var(--r-sm);background:var(--surface-2)}
 .photos figcaption{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:4px}
+.chat{display:flex;flex-direction:column;gap:10px;max-height:46vh;overflow-y:auto}
+.msg{padding:10px 12px;border-radius:12px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:14.5px;background:var(--surface-2);max-width:100%}
+.msg.me{background:var(--accent-soft);align-self:flex-end;max-width:90%}
+.msg.err{background:var(--bad-soft)}
+.msg .act{display:block;font-family:var(--f-mono);font-size:12px;color:var(--good);margin-top:6px}
 .two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 table{border-collapse:collapse;width:100%;font-size:13.5px}
 th{font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;font-weight:500;padding:6px 8px;white-space:nowrap}
@@ -422,7 +427,7 @@ VIEWS.today=()=>{
   '<section class="card" id="askCard"'+((samp||handoff)?'':' hidden')+'><div class="card-head"><h2>Ask Claude</h2><span class="label">uses your numbers</span></div><form data-form="planDay" class="form" style="margin-bottom:12px">'+fld('Hours available today','hours','number','3','min="0.5" max="14" step="0.5" inputmode="decimal" required')+'<button class="btn primary" type="submit">Plan my day</button></form><div class="wrapflex">'+
     ['I have 3 hours today. What should I study?','I got 62% on my last NBME. What should I focus on?','Build me a roadmap to take Step 1 in 5 months.'].map(q=>'<button type="button" class="btn small" data-act="askPrefill" data-q="'+esc(q)+'">'+esc(q)+'</button>').join('')+
   '</div></section>'+
-  '<section class="card"><div class="card-head"><h2>Your data</h2></div><button type="button" class="btn" data-act="openBackup">Backup and restore</button></section>';
+  '<section class="card"><div class="card-head"><h2>Your data</h2></div><div class="wrapflex"><button type="button" class="btn" data-act="openBackup">Backup and restore</button>'+(handoff?'<button type="button" class="btn" data-act="askPrefill" data-q="">ChatGPT assistant'+(oa.key?' (on)':'')+'</button>':'')+'</div></section>';
 };
 FORMS.task=f=>{S.usmle.plan.push({id:uid(),date:TODAY,t:f.t.trim(),done:false});commit()};
 FORMS.study=f=>{const m=+f.min;if(!m)return;day().study.push({subject:f.subject,min:m});commit('Study logged')};
@@ -693,6 +698,111 @@ FORMS.addEx=f=>{const x=S.gym.days.find(d=>d.id===f.id);if(x){x.ex.push(f.e.trim
 FORMS.gymDayNew=f=>{S.gym.days.push({id:uid(),name:f.name.trim(),ex:[]});commit()};
 ACT.delEx=el=>{const x=S.gym.days.find(d=>d.id===el.dataset.id);if(x){x.ex.splice(+el.dataset.i,1);commit()}};
 ACT.delGymDay=el=>{S.gym.days=S.gym.days.filter(d=>d.id!==el.dataset.id);gymDay=null;commit()};
+/* ---------- OpenAI agent (iPhone version) ---------- */
+let oa={key:'',model:'',models:[]},chatLog=[],agentPrev=null,agentCtl=null,agActions=[];
+try{const x=JSON.parse(localStorage.getItem('medtrack_oa')||'null');if(x&&typeof x==='object')oa=Object.assign(oa,x)}catch(e){}
+const saveOA=()=>{try{localStorage.setItem('medtrack_oa',JSON.stringify(oa))}catch(e){}};
+const OA_PREF=['gpt-6-luna','gpt-6.1-sol','gpt-6-astra'];
+const oaHead=t=>'<div class="row between"><h2 style="font-size:18px">'+t+'</h2><button type="button" class="icon-btn" data-act="closeSheet" aria-label="Close"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>';
+const oaErr=e=>{
+  if(e&&e.status===401)return 'OpenAI rejected the key. Open Key, remove it and save a new one.';
+  if(e&&e.status===429)return 'OpenAI says: '+(e.message||'rate limit or no credit')+' Check billing and limits on platform.openai.com.';
+  if(e&&e.status)return 'OpenAI error '+e.status+': '+(e.message||'try again');
+  return 'Could not reach OpenAI from this page. Check your connection and try again. If it keeps failing, tap Copy prompt and paste it into ChatGPT.';
+};
+async function oaFetch(path,opt,signal){
+  const r=await fetch('https://api.openai.com/v1/'+path,Object.assign({headers:{'Authorization':'Bearer '+oa.key,'Content-Type':'application/json'},signal},opt));
+  if(!r.ok){let m='';try{m=(await r.json()).error.message}catch(e){}throw {status:r.status,message:m}}
+  return r.json();
+}
+function openOASetup(msg){
+  sheet(oaHead('Connect ChatGPT')+'<div class="body"><div class="small muted">The assistant uses your own OpenAI API key. Create one at <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com/api-keys</a>. API usage is billed separately from a ChatGPT subscription, so set a monthly limit there. The key stays on this phone and goes only to OpenAI.</div><div class="field"><label for="oaKey">API key</label><input id="oaKey" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="sk-..."></div><div class="row"><button type="button" class="btn primary" id="oaSaveBtn" data-act="oaSave">Save key</button></div><div class="small" id="oaMsg" role="status">'+esc(msg||'')+'</div></div>');
+}
+ACT.oaSave=async()=>{
+  const k=(($('#oaKey')||{}).value||'').trim(),msg=$('#oaMsg'),btn=$('#oaSaveBtn');
+  if(!k){msg.textContent='Paste your key first.';return}
+  btn.disabled=true;msg.textContent='Checking the key...';
+  const prev=oa.key;oa.key=k;
+  try{
+    const j=await oaFetch('models',{method:'GET'});
+    const ids=(j.data||[]).map(m=>m.id).filter(id=>/^gpt-/.test(id)&&!/(audio|realtime|transcribe|tts|image|search|embedding|moderation|instruct|codex)/.test(id)).sort();
+    if(!ids.length)throw {status:0,message:''};
+    oa.models=ids;oa.model=OA_PREF.find(p=>ids.includes(p))||ids[ids.length-1];
+    saveOA();toast('Key saved');openAgent('');
+  }catch(e){
+    oa.key=prev;
+    if(document.body.contains(btn)){btn.disabled=false;msg.textContent=(e&&e.status===401)?'That key was rejected. Check it and try again.':oaErr(e)}
+  }
+};
+ACT.oaSettings=()=>{
+  sheet(oaHead('ChatGPT settings')+'<div class="body"><div class="field"><label for="oaModel">Model</label><select id="oaModel" data-change="oaModel">'+(oa.models.length?oa.models:[oa.model]).map(m=>'<option'+(m===oa.model?' selected':'')+'>'+esc(m)+'</option>').join('')+'</select></div><div class="wrapflex"><button type="button" class="btn" data-act="oaBack">Back to chat</button><button type="button" class="btn danger" data-act="oaRemove">Remove key</button></div></div>');
+};
+ACT.oaModel=el=>{oa.model=el.value;agentPrev=null;saveOA();toast('Model changed')};
+ACT.oaBack=()=>openAgent('');
+ACT.oaRemove=()=>{oa.key='';oa.models=[];oa.model='';agentPrev=null;chatLog=[];saveOA();openOASetup('Key removed from this phone.')};
+function paintChat(){
+  const c=$('#chat');if(!c)return;
+  c.innerHTML=chatLog.length?chatLog.map(m=>'<div class="msg '+(m.role==='me'?'me':'')+(m.err?' err':'')+'">'+esc(m.text)+(m.actions||[]).map(a=>'<span class="act">✓ '+esc(a)+'</span>').join('')+'</div>').join(''):'<div class="empty">Ask for a plan, or say what to log. For example: log 40 UWorld questions in Renal, 28 correct.</div>';
+  c.scrollTop=c.scrollHeight;
+}
+function openAgent(q){
+  if(!oa.key){openOASetup();return}
+  sheet(oaHead('Ask ChatGPT')+'<div class="body"><div class="chat" id="chat"></div><div class="field"><label for="askQ">Message</label><textarea id="askQ" placeholder="I have 3 hours today. What should I study?"></textarea></div><div class="row" style="flex-wrap:wrap"><button type="button" class="btn primary" id="agSend" data-act="agSend">Send</button><button type="button" class="btn" id="agStop" data-act="agStop" hidden>Stop</button><button type="button" class="btn small" data-act="handoffCopy">Copy prompt</button><button type="button" class="btn small ghost" data-act="oaSettings">Key and model</button></div><div class="small muted">The assistant can add tasks and logs for you. It cannot delete anything. Check US licensing, visa and state rules on official sites.</div></div>');
+  paintChat();const t=$('#askQ');t.value=q||'';t.focus();
+}
+const num=(v,lo,hi)=>{const n=+v;if(!isFinite(n)||n<lo||n>hi)throw new Error('Number must be between '+lo+' and '+hi);return n};
+const TOOL_IMPL={
+  add_task:a=>{const t=String(a.text||'').trim().slice(0,140);if(!t)throw new Error('Empty task');S.usmle.plan.push({id:uid(),date:TODAY,t,done:false});return 'Added task: '+t},
+  log_study:a=>{const m=Math.round(num(a.minutes,1,720)),s=String(a.subject||'Self-study').slice(0,60);day().study.push({subject:s,min:m});return 'Logged '+hm(m)+' of '+s},
+  log_uworld:a=>{const q=Math.round(num(a.questions,1,400)),c=Math.round(num(a.correct,0,q));const sys=SYSTEMS.find(x=>x.toLowerCase()===String(a.system||'').toLowerCase())||String(a.system||'Other').slice(0,40);S.usmle.uw.push({id:uid(),date:TODAY,system:sys,q,c});return 'Logged UWorld '+sys+': '+c+' / '+q},
+  add_meal:a=>{const p=Math.round(num(a.protein_g||0,0,300)),k=Math.round(num(a.kcal||0,0,3000)),d=day();d.protein=(d.protein||0)+p;d.kcal=(d.kcal||0)+k;return 'Added meal: '+p+' g protein, '+k+' kcal'},
+  log_workout:a=>{const n=String(a.day||'');const m=S.gym.days.find(x=>x.name.toLowerCase()===n.toLowerCase());if(!m&&n.toLowerCase()!=='rest')throw new Error('Unknown workout day. Options: '+S.gym.days.map(x=>x.name).join(', ')+', Rest');day().workout=m?m.name:'';return 'Workout today: '+(m?m.name:'Rest')},
+  add_saving:a=>{const v=num(a.usd,1,100000);S.money.saved.push({id:uid(),date:TODAY,amt:v});return 'Added '+usd(v)+' to the fund'},
+  add_nbme:a=>{const p=num(a.percent,0,100),n=String(a.name||'NBME').slice(0,40);S.usmle.nbme.push({id:uid(),date:TODAY,name:n,score:p,weak:String(a.weak_areas||'').slice(0,120)});return 'Added '+n+': '+p+'%'}
+};
+const fn=(name,description,properties,required)=>({type:'function',name,description,parameters:{type:'object',properties,required,additionalProperties:false}});
+const TOOLS=[
+  fn('add_task','Add a task to today\'s plan.',{text:{type:'string'}},['text']),
+  fn('log_study','Log study time for today.',{subject:{type:'string'},minutes:{type:'number'}},['subject','minutes']),
+  fn('log_uworld','Log a UWorld question block done today.',{system:{type:'string'},questions:{type:'number'},correct:{type:'number'}},['system','questions','correct']),
+  fn('add_meal','Add a meal to today\'s nutrition totals.',{protein_g:{type:'number'},kcal:{type:'number'}},['protein_g','kcal']),
+  fn('log_workout','Set today\'s workout day, or Rest.',{day:{type:'string'}},['day']),
+  fn('add_saving','Add money to the USMLE fund, in US dollars.',{usd:{type:'number'}},['usd']),
+  fn('add_nbme','Record an NBME score as percent correct.',{name:{type:'string'},percent:{type:'number'},weak_areas:{type:'string'}},['name','percent'])
+];
+const agentInstructions=()=>'You are the assistant inside MedTrack, the personal dashboard of Dr. Mohamed, a fifth-year Egyptian medical student preparing for the USMLE and a US residency. His current numbers are in the JSON below. Lead with the answer, then give short steps with real numbers (hours, question counts, topics). Keep it under 250 words unless he asks for more. Plain text only, no markdown symbols. Reply in the language he writes (Egyptian Arabic if he writes Arabic, keeping medical terms in English). If sampleData is true, say the numbers are examples when it matters. For US licensing, visa or state rules, say what to verify with ECFMG or the state medical board instead of stating requirements as certain. You can change his data only with the tools: use them when he asks to log, add or plan something, never invent numbers he did not give, and say what you did in one line. You cannot delete anything.\n\nDATA (JSON):\n'+aiContext();
+const outText=res=>(res.output||[]).filter(o=>o.type==='message').flatMap(o=>o.content||[]).filter(c=>c.type==='output_text').map(c=>c.text).join('\n').trim();
+async function agentRun(userText,signal){
+  let input=[{role:'user',content:userText}],prev=agentPrev;
+  for(let round=0;round<5;round++){
+    const body={model:oa.model,instructions:agentInstructions(),input,tools:TOOLS};
+    if(prev)body.previous_response_id=prev;
+    const res=await oaFetch('responses',{method:'POST',body:JSON.stringify(body)},signal);
+    prev=res.id;agentPrev=prev;
+    const calls=(res.output||[]).filter(o=>o.type==='function_call');
+    if(!calls.length)return outText(res);
+    input=calls.map(c=>{
+      let out;
+      try{const s=TOOL_IMPL[c.name]?TOOL_IMPL[c.name](JSON.parse(c.arguments||'{}')):(()=>{throw new Error('Unknown tool')})();agActions.push(s);out={ok:true,result:s}}
+      catch(e){out={ok:false,error:String(e&&e.message||e)}}
+      return {type:'function_call_output',call_id:c.call_id,output:JSON.stringify(out)};
+    });
+  }
+  return 'I stopped after several steps. Ask again if something is missing.';
+}
+ACT.agStop=()=>{if(agentCtl)agentCtl.abort()};
+ACT.agSend=async()=>{
+  const ta=$('#askQ'),t=((ta&&ta.value)||'').trim();if(!t||agentCtl)return;
+  ta.value='';agActions=[];chatLog.push({role:'me',text:t},{role:'ai',text:'Thinking...'});paintChat();
+  $('#agSend').disabled=true;$('#agStop').hidden=false;agentCtl=new AbortController();
+  let reply;
+  try{reply={role:'ai',text:(await agentRun(t,agentCtl.signal))||'Done.'}}
+  catch(e){reply=(e&&e.name==='AbortError')?{role:'ai',text:'Stopped.'}:{role:'ai',text:oaErr(e),err:true}}
+  reply.actions=agActions.slice();chatLog.pop();chatLog.push(reply);agentCtl=null;
+  if(agActions.length){touch();render()}
+  if(document.body.contains($('#chat'))){paintChat();$('#agSend').disabled=false;$('#agStop').hidden=true}
+};
+
 /* ---------- Ask Claude ---------- */
 let samp=null,askCtl=null;
 const handoff=!window.claude;
@@ -720,6 +830,7 @@ function buildPrompt(q){
     'Use his logged numbers below. Lead with the answer, then give short numbered steps with real numbers (hours, question counts, topics). Keep it under 250 words unless he asks for more. Plain text only, no markdown symbols. Reply in the language of his question (Egyptian Arabic if he writes Arabic, keeping medical terms in English). If sampleData is true, say the numbers are examples. For US licensing, visa or state rules, say what to verify with ECFMG or the state medical board instead of stating requirements as certain.\n\nHIS DATA (JSON):\n'+aiContext()+'\n\nQUESTION:\n'+q.trim();
 }
 function openAsk(q){
+  if(handoff){openAgent(q);return}
   sheet('<div class="row between"><h2 style="font-size:18px">Ask Claude</h2><button type="button" class="icon-btn" data-act="closeSheet" aria-label="Close"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>'+
     '<div class="body"><div class="field"><label for="askQ">Your question (English or Arabic)</label><textarea id="askQ" placeholder="I have 3 hours today. What should I study?"></textarea></div>'+
     (handoff?'<div class="row"><button type="button" class="btn primary" data-act="handoffCopy">Copy prompt</button><a class="btn" href="https://claude.ai/new" target="_blank" rel="noopener" style="text-decoration:none">Open Claude</a></div>':'<div class="row"><button type="button" class="btn primary" id="askGo" data-act="runAsk">Ask</button><button type="button" class="btn" id="askStop" data-act="stopAsk" hidden>Stop</button></div>')+
@@ -732,11 +843,11 @@ document.addEventListener('click',e=>{if(e.target.closest('#askBtn'))openAsk('')
 ACT.handoffCopy=async()=>{
   const q=(($('#askQ')||{}).value||'').trim();if(!q)return;
   const text=buildPrompt(q),out=$('#askOut');
-  try{await navigator.clipboard.writeText(text);toast('Copied. Paste it in a new Claude chat.');out.hidden=false;out.textContent='Copied. Now tap Open Claude and paste.'}
-  catch(e){out.hidden=false;out.textContent=text;toast('Press and hold the text to copy it')}
+  try{await navigator.clipboard.writeText(text);toast('Copied. Paste it into your AI chat.');if(out){out.hidden=false;out.textContent='Copied.'}}
+  catch(e){if(out){out.hidden=false;out.textContent=text}toast('Press and hold the text to copy it')}
 };
 ACT.stopAsk=()=>{if(askCtl)askCtl.abort()};
-window.__abort=()=>{if(askCtl)askCtl.abort()};
+window.__abort=()=>{if(askCtl)askCtl.abort();if(agentCtl)agentCtl.abort()};
 ACT.runAsk=async()=>{
   const q=($('#askQ')||{}).value;if(!q||!q.trim()||!samp)return;
   const out=$('#askOut'),go=$('#askGo'),stop=$('#askStop');
@@ -776,7 +887,7 @@ ACT.bkRestore=el=>{
 /* ---------- Plan my day ---------- */
 let pendingPlan=[];
 FORMS.planDay=async f=>{
-  if(!samp){if(handoff)openAsk('I have '+clamp(+f.hours||3,0.5,14)+' hours today. Build my study plan for today: 4 to 7 tasks with minutes, weakest systems first.');return}
+  if(!samp){if(handoff)openAsk('I have '+clamp(+f.hours||3,0.5,14)+' hours today. Build my study plan for today: 4 to 7 tasks with minutes, weakest systems first, and add them to my plan.');return}
   const hrs=clamp(+f.hours||3,0.5,14);
   pendingPlan=[];
   sheet('<div class="row between"><h2 style="font-size:18px">Plan for '+hrs+' h</h2><button type="button" class="icon-btn" data-act="closeSheet" aria-label="Close"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div><div class="body"><div class="answer" id="planOut">Thinking...</div><div class="row"><button type="button" class="btn primary" id="planAdd" data-act="applyPlan" hidden>Add to today</button></div></div>');
