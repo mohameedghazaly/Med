@@ -1,0 +1,821 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="MedTrack">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#EDF0F5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0A0E17" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,-apple-system,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>MedTrack</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&family=Schibsted+Grotesk:wght@600;700;800&display=swap">
+<style>
+/* Layout: phone-first app shell. Sticky header, scrolling view, fixed bottom tab bar. Six tabs, one shared state. */
+:root{
+  --bg:#EDF0F5; --surface:#FFFFFF; --surface-2:#F5F7FB; --ink:#0F172A; --muted:#5B6577; --line:#D9DEE8;
+  --accent:#3047E0; --accent-ink:#FFFFFF; --accent-soft:#E3E7FD;
+  --good:#16875B; --good-soft:#DDF3EA; --warn:#A8690B; --warn-soft:#FBEBCF; --bad:#C2362F; --bad-soft:#F9DEDC;
+  --grid:#E9D9DE; --grid-strong:#DDBFC8;
+  --f-display:"Schibsted Grotesk","IBM Plex Sans Arabic",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans","IBM Plex Sans Arabic",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --r:14px; --r-sm:9px; --nav-h:64px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0A0E17; --surface:#131926; --surface-2:#192031; --ink:#E8ECF5; --muted:#98A2B6; --line:#232C3E;
+  --accent:#8296FF; --accent-ink:#0A0E17; --accent-soft:#1D2547;
+  --good:#47C98F; --good-soft:#12342A; --warn:#E5A84B; --warn-soft:#3A2B10; --bad:#F07B73; --bad-soft:#40181A;
+  --grid:#2A1F27; --grid-strong:#3A2A34; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0A0E17; --surface:#131926; --surface-2:#192031; --ink:#E8ECF5; --muted:#98A2B6; --line:#232C3E;
+  --accent:#8296FF; --accent-ink:#0A0E17; --accent-soft:#1D2547;
+  --good:#47C98F; --good-soft:#12342A; --warn:#E5A84B; --warn-soft:#3A2B10; --bad:#F07B73; --bad-soft:#40181A;
+  --grid:#2A1F27; --grid-strong:#3A2A34; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;padding-inline:16px;padding-block:0 calc(var(--nav-h) + 24px + env(safe-area-inset-bottom,0px));-webkit-text-size-adjust:100%}
+.wrap{max-width:720px;margin-inline:auto}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance;letter-spacing:-.01em}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.num{font-family:var(--f-display);font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.muted{color:var(--muted)} .small{font-size:12.5px} .label{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+
+/* header */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:12px 10px}
+.top h1{font-size:22px;font-weight:800}
+.top .sub{font-size:12.5px;color:var(--muted)}
+.ask-btn{display:inline-flex;align-items:center;gap:8px;border:0;background:var(--accent);color:var(--accent-ink);border-radius:999px;padding:9px 15px;font-weight:600;font-size:14px}
+.sample-banner{display:flex;gap:10px;align-items:center;justify-content:space-between;background:var(--warn-soft);color:var(--ink);border-radius:var(--r-sm);padding:9px 12px;font-size:13px;margin-bottom:12px}
+.sample-banner button{border:0;background:var(--ink);color:var(--bg);border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:600;white-space:nowrap}
+
+/* cards */
+.stack{display:flex;flex-direction:column;gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px}
+.card h2{font-size:16px;font-weight:700}
+.card-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:10px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.stat{background:var(--surface-2);border-radius:var(--r-sm);padding:10px 12px;min-width:0}
+.stat .num{font-size:24px;line-height:1.1;display:block;margin-top:2px}
+.stat .unit{font-size:12.5px;color:var(--muted);font-weight:500}
+.bar{height:8px;border-radius:99px;background:var(--line);overflow:hidden}
+.bar>i{display:block;height:100%;border-radius:99px;background:var(--accent)}
+.bar.good>i{background:var(--good)} .bar.warn>i{background:var(--warn)} .bar.bad>i{background:var(--bad)}
+.row{display:flex;align-items:center;gap:10px;min-width:0}
+.row.between{justify-content:space-between}
+.row>.grow{flex:1;min-width:0}
+.wrapflex{display:flex;flex-wrap:wrap;gap:8px}
+.pill{display:inline-flex;align-items:center;border-radius:99px;padding:2px 9px;font-size:12px;font-weight:600;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+.pill.good{background:var(--good-soft);color:var(--good)} .pill.warn{background:var(--warn-soft);color:var(--warn)} .pill.bad{background:var(--bad-soft);color:var(--bad)}
+.list{display:flex;flex-direction:column}
+.list>.item{display:flex;align-items:center;gap:10px;padding-block:9px;border-top:1px solid var(--line);min-width:0}
+.list>.item:first-child{border-top:0;padding-top:0}
+.list>.item .grow{flex:1;min-width:0;overflow-wrap:anywhere}
+.done-text{text-decoration:line-through;color:var(--muted)}
+
+/* controls */
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:var(--r-sm);padding:8px 13px;font-weight:600;font-size:14px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.small{padding:5px 10px;font-size:13px}
+.btn.ghost{background:transparent}
+.btn.danger{color:var(--bad)}
+.icon-btn{border:0;background:transparent;color:var(--muted);padding:6px;border-radius:8px;line-height:0}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label{font-size:12px;color:var(--muted)}
+input[type=text],input[type=number],input[type=date],select,textarea{width:100%;min-width:0;background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-sm);padding:9px 10px;font-size:15px}
+textarea{resize:vertical;min-height:84px}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;align-items:end}
+input[type=checkbox]{appearance:none;width:22px;height:22px;border:2px solid var(--muted);border-radius:7px;background:transparent;flex:none;display:grid;place-content:center;margin:0}
+input[type=checkbox]:checked{background:var(--good);border-color:var(--good)}
+input[type=checkbox]:checked::after{content:"";width:6px;height:11px;border:solid var(--bg);border-width:0 2.5px 2.5px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.seg{display:flex;gap:4px;background:var(--surface-2);border-radius:var(--r-sm);padding:3px;overflow-x:auto}
+.seg button{flex:1;border:0;background:transparent;border-radius:7px;padding:7px 10px;font-weight:600;font-size:13px;color:var(--muted);white-space:nowrap}
+.seg button[aria-pressed=true]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.scroll-x{overflow-x:auto}
+input[type=file]{width:100%;font-size:13px}
+.photos{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.photos figure{margin:0;min-width:0}
+.photos img{display:block;width:100%;max-width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:var(--r-sm);background:var(--surface-2)}
+.photos figcaption{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:4px}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th{font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;font-weight:500;padding:6px 8px;white-space:nowrap}
+td{padding:7px 8px;border-top:1px solid var(--line);white-space:nowrap}
+td.num-c,th.num-c{text-align:right}
+
+/* ecg journey */
+.ecg{background-color:var(--surface);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px),linear-gradient(var(--grid-strong) 1px,transparent 1px),linear-gradient(90deg,var(--grid-strong) 1px,transparent 1px);background-size:12px 12px,12px 12px,60px 60px,60px 60px;border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden}
+.ecg svg{display:block;width:100%;height:auto}
+.journey{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;font-family:var(--f-display);font-weight:700;font-size:20px}
+.journey .arrow{color:var(--muted);font-weight:500}
+.journey .match{color:var(--good)}
+
+/* week */
+.week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.week .d{background:var(--surface-2);border-radius:8px;padding:6px 0;text-align:center;font-size:11px;color:var(--muted)}
+.week .d b{display:block;font-size:15px;color:var(--ink);font-family:var(--f-display)}
+.week .d.today{outline:2px solid var(--accent)}
+.week .d.hit{background:var(--good-soft)}
+
+/* nav */
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(6,minmax(0,1fr));padding-bottom:env(safe-area-inset-bottom,0px)}
+.tabs button{border:0;background:transparent;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 2px 8px;font-size:10.5px;font-weight:600;color:var(--muted);height:var(--nav-h)}
+.tabs button svg{width:22px;height:22px}
+.tabs button[aria-current=page]{color:var(--accent)}
+
+/* sheet + toast */
+.scrim{position:fixed;inset:0;background:rgba(5,8,15,.5);z-index:40}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--surface);border-radius:20px 20px 0 0;max-height:88%;display:flex;flex-direction:column;padding:14px 16px calc(14px + env(safe-area-inset-bottom,0px));max-width:720px;margin-inline:auto;border:1px solid var(--line)}
+.sheet .body{overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding-block:10px}
+.answer{background:var(--surface-2);border-radius:var(--r-sm);padding:12px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:14.5px;max-height:46vh;overflow-y:auto}
+.toast{position:fixed;left:50%;bottom:calc(var(--nav-h) + 16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 15px;border-radius:99px;font-size:13.5px;font-weight:600;z-index:60;max-width:calc(100% - 32px)}
+.empty{padding:14px;text-align:center;color:var(--muted);font-size:13.5px;border:1px dashed var(--line);border-radius:var(--r-sm)}
+@media (prefers-reduced-motion:no-preference){.bar>i{transition:width .4s ease}}
+@media (max-width:380px){.grid3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
+</head><body>
+<div class="wrap">
+  <header class="top">
+    <div style="min-width:0">
+      <h1 id="hTitle">MedTrack</h1>
+      <div class="sub" id="hSub"></div>
+    </div>
+    <button class="ask-btn" id="askBtn" type="button" hidden aria-label="Ask Claude for a plan">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg>
+      Ask
+    </button>
+  </header>
+  <div id="banner"></div>
+  <main id="view" class="stack"></main>
+</div>
+<nav class="tabs" id="tabs" aria-label="Sections"></nav>
+<div id="overlay"></div>
+<div id="toast" class="toast" role="status" hidden></div>
+<script>
+(function(){
+const $=(s,r)=>(r||document).querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Math.random().toString(36).slice(2,9);
+const pad=n=>String(n).padStart(2,'0');
+const dkey=d=>{d=d||new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
+const addDays=(k,n)=>{const d=new Date(k+'T12:00:00');d.setDate(d.getDate()+n);return dkey(d)};
+const daysBetween=(a,b)=>Math.round((new Date(b+'T12:00:00')-new Date(a+'T12:00:00'))/864e5);
+const TODAY=dkey();
+const pct=(a,b)=>b>0?Math.round(a/b*100):0;
+const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+const usd=n=>'$'+Math.round(n||0).toLocaleString('en-US');
+const sum=(a,f)=>a.reduce((s,x)=>s+(+(f?f(x):x)||0),0);
+const SYSTEMS=['Cardiology','Pulmonology','Renal','Gastroenterology','Endocrine','Neurology','Biostatistics','Ethics','Microbiology','Pharmacology','Biochemistry','Immunology','Hematology/Oncology','MSK/Derm','Reproductive','Psychiatry'];
+const fmtDate=(k,o)=>new Date(k+'T12:00:00').toLocaleDateString('en-US',o||{month:'short',day:'numeric'});
+
+function baseState(){return{
+  v:1,updatedAt:0,sample:false,
+  usmle:{examDate:'',targetQ:3000,targetScore:75,studyGoal:240,uw:[],nbme:[],plan:[]},
+  days:{},
+  school:{subjects:[],events:[]},
+  road:{stages:[
+    {id:'s1',name:'Step 1',status:'doing',date:'',notes:''},
+    {id:'s2',name:'Step 2 CK',status:'todo',date:'',notes:''},
+    {id:'s3',name:'ECFMG certification',status:'todo',date:'',notes:''},
+    {id:'s4',name:'USCE / observership',status:'todo',date:'',notes:''},
+    {id:'s5',name:'ERAS application',status:'todo',date:'',notes:''},
+    {id:'s6',name:'Interviews',status:'todo',date:'',notes:''},
+    {id:'s7',name:'Match',status:'todo',date:'',notes:''}],
+    usce:[],states:[],
+    visa:{track:'J-1',items:[
+      {id:'v1',t:'Decide J-1 or H-1B path',done:false},
+      {id:'v2',t:'Research J-1 waiver options (for example Conrad 30)',done:false},
+      {id:'v3',t:'Check sponsor policies at target programs',done:false}]}},
+  money:{target:3000,items:[],saved:[]},
+  gym:{kcal:2300,protein:170,perWeek:5,days:[
+    {id:'g1',name:'Push',ex:['Incline DB press','Flat chest press','Cable fly','Front/side delt raises','Rope pushdown','Overhead rope tricep extension']},
+    {id:'g2',name:'Pull',ex:['Lat pulldown','Seated cable row','Chest-supported row','Face pull','EZ-bar curl','Hammer curl']},
+    {id:'g3',name:'Legs',ex:['Back squat','Romanian deadlift','Leg press','Leg curl','Standing calf raise']}],
+    logs:[],body:[],photos:[]}
+}}
+
+function sampleState(){
+  const s=baseState();s.sample=true;
+  const T=TODAY,d=n=>addDays(T,n);
+  s.usmle.examDate=d(150);
+  s.usmle.plan=[
+    {id:uid(),date:T,t:'UWorld 40 Q, Renal block',done:true},
+    {id:uid(),date:T,t:'Surgery: acute abdomen review',done:true},
+    {id:uid(),date:T,t:'Anki reviews',done:false},
+    {id:uid(),date:T,t:'Pull workout',done:false}];
+  const sysSeq=[['Cardiology',40,22],['Renal',40,21],['Biostatistics',20,8],['Pulmonology',40,22],['Endocrine',40,24],['Neurology',40,23],['Microbiology',40,24],['Biostatistics',20,9],['Pharmacology',40,25],['Renal',40,24],['Gastroenterology',40,26],['Cardiology',40,27],['Ethics',20,15],['Pulmonology',40,26],['Renal',40,26]];
+  sysSeq.forEach((x,i)=>s.usmle.uw.push({id:uid(),date:d(-14+i),system:x[0],q:x[1],c:x[2]}));
+  s.usmle.uw.push({id:uid(),date:T,system:'Renal',q:40,c:27});
+  [[-70,'NBME 24',52],[-42,'NBME 25',58],[-21,'NBME 26',64],[-7,'NBME 27',69]].forEach(x=>s.usmle.nbme.push({id:uid(),date:d(x[0]),name:x[1],score:x[2]}));
+  const study=[150,180,120,200,90,160,140,170,130,190,150,160,175,120];
+  const prot=[158,162,149,171,140,166,155,168,152,170,160,165,158,142];
+  const kc=[2250,2310,2180,2340,2090,2300,2260,2330,2210,2290,2320,2270,2310,2100];
+  const wk=['Push','Pull','Legs','','Push','Pull','Legs','','Push','Pull','Legs','','Push','Pull'];
+  const sub=['Surgery','Internal Medicine','Pediatrics','Surgery','Internal Medicine','Surgery','Pediatrics','Surgery','Internal Medicine','Surgery','Pediatrics','Internal Medicine','Surgery','Surgery'];
+  for(let i=0;i<14;i++){
+    const k=d(-13+i);
+    s.days[k]={study:[{subject:sub[i],min:study[i]}],workout:wk[i],protein:prot[i],kcal:kc[i],anki:i===13?0:(70+((i*37)%90))};
+  }
+  s.days[T].study=[{subject:'Surgery',min:120}];
+  s.school.subjects=[
+    {id:'sj1',name:'Surgery',topics:[
+      {t:'Acute abdomen',done:true},{t:'Hernias',done:true},{t:'Trauma and ATLS',done:true},{t:'Breast lumps',done:false},{t:'Thyroid nodules',done:false},{t:'Burns',done:false}]},
+    {id:'sj2',name:'Internal Medicine',topics:[
+      {t:'Chest pain',done:true},{t:'Heart failure',done:true},{t:'COPD and asthma',done:false},{t:'DKA',done:false},{t:'Anemia work-up',done:false}]},
+    {id:'sj3',name:'Pediatrics',topics:[
+      {t:'Neonatal jaundice',done:false},{t:'Vaccination schedule',done:false},{t:'Fever in children',done:false},{t:'Congenital heart disease',done:false}]}
+  ].map(x=>(x.topics=x.topics.map(t=>({id:uid(),t:t.t,done:t.done,note:'',link:''})),x));
+  s.school.events=[
+    {id:uid(),date:d(3),title:'Surgery grand round',type:'Lecture'},
+    {id:uid(),date:d(9),title:'Surgery end-of-rotation exam',type:'Exam'},
+    {id:uid(),date:d(20),title:'Pediatrics OSCE',type:'Exam'}];
+  s.road.stages[0].date=d(150);
+  s.road.stages[0].status='doing';
+  s.road.usce=[{id:uid(),place:'Example hospital',type:'Observership',state:'TX',status:'Planning'}];
+  s.road.states=['Texas','New York','Florida'].map(n=>({id:uid(),name:n,req:'',salary:'',notes:''}));
+  s.money.items=[
+    {id:uid(),cat:'UWorld',label:'UWorld subscription',cost:400,paid:true},
+    {id:uid(),cat:'NBME',label:'NBME assessments',cost:120,paid:true},
+    {id:uid(),cat:'Exam fees',label:'Step 1 exam fee',cost:1000,paid:false},
+    {id:uid(),cat:'Exam fees',label:'ECFMG fees',cost:600,paid:false},
+    {id:uid(),cat:'Travel',label:'USCE travel',cost:800,paid:false},
+    {id:uid(),cat:'Visa',label:'Visa application',cost:400,paid:false}];
+  s.money.saved=[{id:uid(),date:d(-20),amt:300},{id:uid(),date:d(-10),amt:250},{id:uid(),date:d(-3),amt:300}];
+  const mk=(day,off,sets)=>({id:uid(),date:d(off),day,sets});
+  s.gym.logs=[
+    mk('Push',-13,{'Incline DB press':[{w:28,r:10},{w:28,r:9},{w:28,r:8}],'Flat chest press':[{w:60,r:10},{w:60,r:9}]}),
+    mk('Pull',-12,{'Lat pulldown':[{w:55,r:10},{w:55,r:10},{w:55,r:9}],'Seated cable row':[{w:50,r:12},{w:50,r:11}]}),
+    mk('Push',-5,{'Incline DB press':[{w:30,r:9},{w:30,r:8},{w:30,r:8}],'Flat chest press':[{w:62.5,r:9},{w:62.5,r:8}]}),
+    mk('Pull',-4,{'Lat pulldown':[{w:57.5,r:10},{w:57.5,r:9},{w:57.5,r:9}],'Seated cable row':[{w:52.5,r:12},{w:52.5,r:10}]})];
+  s.gym.body=[{id:uid(),date:d(-21),kg:84.2,waist:89},{id:uid(),date:d(-14),kg:83.6,waist:88.5},{id:uid(),date:d(-7),kg:83.1,waist:88},{id:uid(),date:d(-1),kg:82.7,waist:87.5}];
+  return s;
+}
+function freshState(){const s=baseState();return s}
+/* ---------- state, storage ---------- */
+const LS='medtrack_v1';
+let assetsApi=null, downloadsApi=null, S=null, dbDoc=null, saveTimer=null, saving=false, dirty=false, tab='today', syncText='Saved on this device';
+try{const t=localStorage.getItem('medtrack_tab');if(t)tab=t}catch(e){}
+try{const raw=JSON.parse(localStorage.getItem(LS));if(raw&&raw.v===1)S=raw}catch(e){}
+if(!S){S=sampleState();S.updatedAt=Date.now()}
+const day=k=>{k=k||TODAY;return S.days[k]||(S.days[k]={study:[],workout:'',protein:0,kcal:0,anki:0})};
+function persistLocal(){try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}}
+function touch(){S.updatedAt=Date.now();persistLocal();dirty=true;clearTimeout(saveTimer);saveTimer=setTimeout(flush,700)}
+async function flush(){
+  if(!dbDoc||saving||!dirty)return;
+  saving=true;dirty=false;
+  try{await dbDoc.set(JSON.parse(JSON.stringify(S)));syncText='Saved to your account'}
+  catch(e){syncText='Saved on this device only'}
+  saving=false;paintSub();
+  if(dirty){clearTimeout(saveTimer);saveTimer=setTimeout(flush,700)}
+}
+function commit(msg){touch();render();if(msg)toast(msg)}
+
+/* ---------- derived numbers ---------- */
+const weekKeys=()=>[6,5,4,3,2,1,0].map(n=>addDays(TODAY,-n));
+const studyOn=k=>sum((S.days[k]||{}).study||[],x=>x.min);
+const uwOn=k=>{const a=S.usmle.uw.filter(x=>x.date===k);return{q:sum(a,x=>x.q),c:sum(a,x=>x.c)}};
+const uwTotal=()=>({q:sum(S.usmle.uw,x=>x.q),c:sum(S.usmle.uw,x=>x.c)});
+function systemStats(){
+  const m={};
+  S.usmle.uw.forEach(x=>{const o=m[x.system]||(m[x.system]={name:x.system,q:0,c:0});o.q+=x.q;o.c+=x.c});
+  return Object.values(m).map(o=>({...o,p:pct(o.c,o.q)}));
+}
+const weakSystems=()=>systemStats().filter(x=>x.q>=20).sort((a,b)=>a.p-b.p).slice(0,3);
+const examLeft=()=>S.usmle.examDate?daysBetween(TODAY,S.usmle.examDate):null;
+function uwAccRange(from,to){
+  const a=S.usmle.uw.filter(x=>x.date>=from&&x.date<=to);
+  return a.length?pct(sum(a,x=>x.c),sum(a,x=>x.q)):null;
+}
+function weekly(){
+  const ks=weekKeys();
+  const studied=sum(ks,studyOn),goal=S.usmle.studyGoal*7;
+  const thisAcc=uwAccRange(ks[0],ks[6]),prevAcc=uwAccRange(addDays(ks[0],-7),addDays(ks[0],-1));
+  const sessions=ks.filter(k=>(S.days[k]||{}).workout).length;
+  const logged=ks.filter(k=>(S.days[k]||{}).protein>0);
+  const hit=logged.filter(k=>S.days[k].protein>=S.gym.protein*0.9).length;
+  const fund=sum(S.money.saved.filter(x=>x.date>=ks[0]&&x.date<=ks[6]),x=>x.amt);
+  return{ks,studied,goal,studyPct:clamp(pct(studied,goal),0,100),
+    delta:(thisAcc!=null&&prevAcc!=null)?thisAcc-prevAcc:null,thisAcc,
+    sessions,nutPct:logged.length?pct(hit,logged.length):0,loggedDays:logged.length,fund};
+}
+function schoolProgress(){
+  const t=S.school.subjects.flatMap(s=>s.topics);
+  return{done:t.filter(x=>x.done).length,total:t.length,p:pct(t.filter(x=>x.done).length,t.length)};
+}
+const savedTotal=()=>sum(S.money.saved,x=>x.amt);
+const plannedTotal=()=>sum(S.money.items,x=>x.cost);
+const paidTotal=()=>sum(S.money.items.filter(x=>x.paid),x=>x.cost);
+const toneFor=p=>p>=75?'good':p>=45?'warn':'bad';
+
+/* ---------- ui plumbing ---------- */
+const ICONS={
+  today:'<path d="M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z"/>',
+  usmle:'<path d="M3 12h4l2-6 4 12 2-6h6"/>',
+  school:'<path d="M4 19.5V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H19"/>',
+  road:'<path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/>',
+  money:'<path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
+  gym:'<path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12"/>'};
+const TABS=[['today','Today'],['usmle','USMLE'],['school','School'],['road','US Road'],['money','Money'],['gym','Gym']];
+const svg=(n,sz)=>'<svg width="'+(sz||22)+'" height="'+(sz||22)+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+ICONS[n]+'</svg>';
+const bar=(p,tone)=>'<div class="bar '+(tone||'')+'" role="progressbar" aria-valuenow="'+clamp(p,0,100)+'" aria-valuemin="0" aria-valuemax="100"><i style="width:'+clamp(p,0,100)+'%"></i></div>';
+let toastT=null;
+function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{t.hidden=true},2200)}
+function paintSub(){const e=$('#hSub');if(e)e.textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})+' · '+syncText}
+function paintBanner(){
+  $('#banner').innerHTML=S.sample?'<div class="sample-banner"><span>These are sample numbers so you can see how it works. Replace them with yours.</span><button type="button" data-act="startFresh">Start fresh</button></div>':'';
+}
+function paintTabs(){
+  $('#tabs').innerHTML=TABS.map(t=>'<button type="button" data-act="tab" data-tab="'+t[0]+'"'+(tab===t[0]?' aria-current="page"':'')+'>'+svg(t[0])+t[1]+'</button>').join('');
+}
+const VIEWS={};
+function render(){
+  $('#hTitle').textContent=tab==='today'?'Dr. Mohamed':TABS.find(t=>t[0]===tab)[1];
+  paintSub();paintBanner();paintTabs();
+  const y=window.scrollY;
+  $('#view').innerHTML=VIEWS[tab]();
+  window.scrollTo(0,y);
+}
+const ACT={},FORMS={};
+document.addEventListener('click',e=>{
+  const el=e.target.closest('[data-act]');if(!el)return;
+  const f=ACT[el.dataset.act];if(f){e.preventDefault();f(el,e)}
+});
+document.addEventListener('change',e=>{
+  const el=e.target.closest('[data-change]');if(!el)return;
+  const f=ACT[el.dataset.change];if(f)f(el,e);
+});
+document.addEventListener('submit',e=>{
+  const form=e.target.closest('form[data-form]');if(!form)return;
+  e.preventDefault();
+  const f=FORMS[form.dataset.form];if(f)f(Object.fromEntries(new FormData(form).entries()),form);
+});
+ACT.tab=el=>{tab=el.dataset.tab;try{localStorage.setItem('medtrack_tab',tab)}catch(e){}render();window.scrollTo(0,0)};
+ACT.startFresh=()=>{
+  const keep=S.usmle.examDate;
+  S=freshState();S.updatedAt=Date.now();commit('Cleared. Add your own numbers.');
+};
+function sheet(html){
+  $('#overlay').innerHTML='<div class="scrim" data-act="closeSheet"></div><div class="sheet" role="dialog" aria-modal="true">'+html+'</div>';
+}
+ACT.closeSheet=()=>{$('#overlay').innerHTML='';if(window.__abort)window.__abort()};
+/* form helpers */
+let fid=0;
+const fld=(label,name,type,val,extra)=>{const id='f'+(++fid);return '<div class="field"><label for="'+id+'">'+label+'</label><input id="'+id+'" name="'+name+'" type="'+(type||'text')+'" value="'+esc(val==null?'':val)+'" '+(extra||'')+'></div>'};
+const sel=(label,name,opts,val)=>{const id='f'+(++fid);return '<div class="field"><label for="'+id+'">'+label+'</label><select id="'+id+'" name="'+name+'">'+opts.map(o=>'<option'+(o===val?' selected':'')+'>'+esc(o)+'</option>').join('')+'</select></div>'};
+/* ---------- shared helpers ---------- */
+const hm=m=>{m=Math.round(m||0);const h=Math.floor(m/60),r=m%60;return h?h+'h'+(r?' '+r+'m':''):r+'m'};
+const getArr=p=>p.split('.').reduce((o,k)=>o[k],S);
+ACT.del=el=>{const a=getArr(el.dataset.path),i=a.findIndex(x=>x.id===el.dataset.id);if(i>=0){a.splice(i,1);commit()}};
+ACT.toggle=el=>{const a=getArr(el.dataset.path),x=a.find(x=>x.id===el.dataset.id);if(x){x.done=el.checked;commit()}};
+const delBtn=(path,id,label)=>'<button type="button" class="icon-btn" data-act="del" data-path="'+path+'" data-id="'+id+'" aria-label="Delete '+esc(label||'item')+'"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg></button>';
+const tile=(label,val,sub,tone)=>'<div class="stat"><span class="label">'+label+'</span><span class="num">'+val+'</span>'+(sub?'<span class="unit">'+sub+'</span>':'')+'</div>';
+
+/* ---------- Today ---------- */
+VIEWS.today=()=>{
+  const d=S.days[TODAY]||{study:[],workout:'',protein:0,kcal:0,anki:0};
+  const uw=uwOn(TODAY),w=weekly(),left=examLeft();
+  const mins=sum(d.study,x=>x.min),tasks=S.usmle.plan.filter(x=>x.date===TODAY);
+  const subjects=S.school.subjects.map(s=>s.name).concat(['USMLE self-study']);
+  const gDays=S.gym.days.map(g=>g.name);
+  const saved=savedTotal();
+  const row=(name,val,p,tone)=>'<div class="stack" style="gap:6px"><div class="row between"><span>'+name+'</span><span class="mono small">'+val+'</span></div>'+bar(p,tone)+'</div>';
+  return ''+
+  '<section class="card"><div class="card-head"><h2>Today</h2><span class="pill">'+(left!=null?(left>=0?left+' days to exam':'Exam date passed'):'Set exam date')+'</span></div>'+
+    '<div class="grid2">'+
+      tile('Study',hm(mins),'goal '+hm(S.usmle.studyGoal))+
+      tile('UWorld',uw.q+' Q',uw.q?pct(uw.c,uw.q)+'% correct':'none logged')+
+      tile('Workout',esc(d.workout||'Rest'),'planned '+S.gym.perWeek+' per week')+
+      tile('Protein',(d.protein||0)+'<span class="unit"> / '+S.gym.protein+' g</span>',(d.kcal||0)+' of '+S.gym.kcal+' kcal')+
+    '</div>'+
+    '<div style="margin-top:10px" class="stack">'+row('Saved for USMLE',usd(saved)+' / '+usd(S.money.target),pct(saved,S.money.target))+'</div>'+
+  '</section>'+
+
+  '<section class="card"><div class="card-head"><h2>Plan for today</h2><span class="small muted">'+tasks.filter(t=>t.done).length+' of '+tasks.length+' done</span></div>'+
+    (tasks.length?'<div class="list">'+tasks.map(t=>'<div class="item"><input type="checkbox" id="t_'+t.id+'" data-change="toggle" data-path="usmle.plan" data-id="'+t.id+'"'+(t.done?' checked':'')+' aria-label="Done"><label for="t_'+t.id+'" class="grow'+(t.done?' done-text':'')+'">'+esc(t.t)+'</label>'+delBtn('usmle.plan',t.id,t.t)+'</div>').join('')+'</div>':'<div class="empty">Nothing planned yet. Add the first task for today.</div>')+
+    '<form data-form="task" class="row" style="margin-top:10px"><input type="text" name="t" placeholder="Add a task, for example Cardiology 40 Q" aria-label="New task" required><button class="btn primary" type="submit">Add</button></form>'+
+  '</section>'+
+
+  '<section class="card"><h2 style="margin-bottom:10px">Quick log</h2><div class="stack">'+
+    '<form data-form="study" class="form">'+sel('Study subject','subject',subjects)+fld('Minutes','min','number','','min="5" step="5" inputmode="numeric" required placeholder="60"')+'<button class="btn primary" type="submit">Log study</button></form>'+
+    '<form data-form="meal" class="form">'+fld('Protein (g)','protein','number','','min="0" inputmode="numeric" placeholder="35"')+fld('Calories','kcal','number','','min="0" inputmode="numeric" placeholder="600"')+'<button class="btn primary" type="submit">Add meal</button></form>'+
+    '<form data-form="workout" class="form">'+sel('Workout today','workout',['Rest'].concat(gDays),d.workout||'Rest')+'<button class="btn" type="submit">Save workout</button></form>'+
+    '<form data-form="saving" class="form">'+fld('Saved today (USD)','amt','number','','min="1" inputmode="decimal" placeholder="50"')+'<button class="btn primary" type="submit">Add to fund</button></form>'+
+  '</div></section>'+
+
+  '<section class="card"><div class="card-head"><h2>This week</h2><span class="label">last 7 days</span></div>'+
+    '<div class="week" style="margin-bottom:12px">'+w.ks.map(k=>{const m=studyOn(k),dd=S.days[k]||{};return '<div class="d'+(k===TODAY?' today':'')+(m>=S.usmle.studyGoal*0.8?' hit':'')+'">'+fmtDate(k,{weekday:'narrow'})+'<b>'+(m?(m/60).toFixed(1):'0')+'</b>'+(dd.workout?'<span aria-hidden="true">●</span>':'<span aria-hidden="true">·</span>')+'</div>'}).join('')+'</div>'+
+    '<div class="stack">'+
+      row('Study',w.studyPct+'%',w.studyPct,toneFor(w.studyPct))+
+      row('USMLE accuracy',w.thisAcc==null?'no data':w.thisAcc+'%'+(w.delta!=null?' ('+(w.delta>=0?'+':'')+w.delta+')':''),w.thisAcc||0,w.delta!=null&&w.delta<0?'warn':'good')+
+      row('Gym',w.sessions+' / '+S.gym.perWeek+' workouts',pct(w.sessions,S.gym.perWeek),toneFor(pct(w.sessions,S.gym.perWeek)))+
+      row('Nutrition',w.loggedDays?w.nutPct+'% of days on protein':'no data',w.nutPct,toneFor(w.nutPct))+
+      row('USMLE fund','+'+usd(w.fund),clamp(pct(w.fund,Math.max(1,(S.money.target-saved+w.fund)/Math.max(1,(left||150)/7))),0,100),'')+
+    '</div>'+
+  (samp?'<div style="margin-top:12px"><button type="button" class="btn small" data-act="askPrefill" data-q="Review my last 7 days against the week before. Tell me what went well, what slipped, and set 3 targets for next week.">Review my week with Claude</button></div>':'')+'</section>'+
+
+  '<section class="card" id="askCard"'+(samp?'':' hidden')+'><div class="card-head"><h2>Ask Claude</h2><span class="label">uses your numbers</span></div><form data-form="planDay" class="form" style="margin-bottom:12px">'+fld('Hours available today','hours','number','3','min="0.5" max="14" step="0.5" inputmode="decimal" required')+'<button class="btn primary" type="submit">Plan my day</button></form><div class="wrapflex">'+
+    ['I have 3 hours today. What should I study?','I got 62% on my last NBME. What should I focus on?','Build me a roadmap to take Step 1 in 5 months.'].map(q=>'<button type="button" class="btn small" data-act="askPrefill" data-q="'+esc(q)+'">'+esc(q)+'</button>').join('')+
+  '</div></section>'+
+  '<section class="card"><div class="card-head"><h2>Your data</h2></div><button type="button" class="btn" data-act="openBackup">Backup and restore</button></section>';
+};
+FORMS.task=f=>{S.usmle.plan.push({id:uid(),date:TODAY,t:f.t.trim(),done:false});commit()};
+FORMS.study=f=>{const m=+f.min;if(!m)return;day().study.push({subject:f.subject,min:m});commit('Study logged')};
+FORMS.meal=f=>{const d=day();d.protein=(d.protein||0)+(+f.protein||0);d.kcal=(d.kcal||0)+(+f.kcal||0);commit('Meal added')};
+FORMS.workout=f=>{day().workout=f.workout==='Rest'?'':f.workout;commit('Workout saved')};
+FORMS.saving=f=>{const a=+f.amt;if(!a)return;S.money.saved.push({id:uid(),date:TODAY,amt:a});commit('Added to your fund')};
+/* ---------- USMLE ---------- */
+function ecg(){
+  const pts=S.usmle.nbme.slice().sort((a,b)=>a.date<b.date?-1:1);
+  if(pts.length<2)return '<div class="empty">Add two NBME scores to see your trace.</div>';
+  const W=360,H=150,L=30,R=18,T=14,B=26,y0=30,y1=100,tgt=S.usmle.targetScore;
+  const X=i=>L+(W-L-R)*(i/(pts.length-1)),Y=v=>T+(H-T-B)*(1-(clamp(v,y0,y1)-y0)/(y1-y0));
+  const line=pts.map((p,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(p.score).toFixed(1)).join(' ');
+  const ticks=[40,60,80,100].map(v=>'<text x="'+(L-6)+'" y="'+(Y(v)+4)+'" text-anchor="end" font-size="10" style="fill:var(--muted);font-family:var(--f-mono)">'+v+'</text>').join('');
+  const dots=pts.map((p,i)=>'<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(p.score).toFixed(1)+'" r="4.5" style="fill:var(--accent)"/><text x="'+X(i).toFixed(1)+'" y="'+(Y(p.score)-9).toFixed(1)+'" text-anchor="middle" font-size="11" font-weight="600" style="fill:var(--ink);font-family:var(--f-mono)">'+p.score+'</text><text x="'+X(i).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="10" style="fill:var(--muted);font-family:var(--f-mono)">'+esc(fmtDate(p.date))+'</text>').join('');
+  return '<div class="ecg"><svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="NBME scores over time">'+ticks+
+    '<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(tgt).toFixed(1)+'" y2="'+Y(tgt).toFixed(1)+'" stroke-dasharray="4 4" stroke-width="1.5" style="stroke:var(--good)"/>'+
+    '<text x="'+(W-R)+'" y="'+(Y(tgt)-5).toFixed(1)+'" text-anchor="end" font-size="10" style="fill:var(--good);font-family:var(--f-mono)">target '+tgt+'</text>'+
+    '<path d="'+line+'" fill="none" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" style="stroke:var(--accent)"/>'+dots+'</svg></div>';
+}
+VIEWS.usmle=()=>{
+  const left=examLeft(),t=uwTotal(),acc=pct(t.c,t.q),weak=weakSystems();
+  const need=left>0?Math.max(0,Math.ceil((S.usmle.targetQ-t.q)/left)):null;
+  const nb=S.usmle.nbme.slice().sort((a,b)=>a.date<b.date?-1:1);
+  const journey=nb.map(n=>'<span>'+n.score+'%</span>').join('<span class="arrow">→</span>');
+  const wk=weekKeys().map(k=>(S.days[k]||{}).anki||0),ankiMax=Math.max(1,...wk);
+  let streak=0;for(let i=0;i<60;i++){const k=addDays(TODAY,-i);if(((S.days[k]||{}).anki||0)>0)streak++;else if(i>0)break;else continue}
+  const recent=S.usmle.uw.slice().sort((a,b)=>a.date<b.date?1:-1).slice(0,6);
+  return ''+
+  '<section class="card"><div class="card-head"><h2>Step 1 progress</h2><span class="pill '+toneFor(pct(t.q,S.usmle.targetQ))+'">'+pct(t.q,S.usmle.targetQ)+'% of questions</span></div>'+
+    '<div class="grid3">'+tile('Days left',left==null?'–':Math.max(left,0),S.usmle.examDate?fmtDate(S.usmle.examDate,{month:'short',day:'numeric',year:'numeric'}):'set a date')+tile('Questions',t.q.toLocaleString('en-US'),'of '+S.usmle.targetQ.toLocaleString('en-US'))+tile('Correct',t.q?acc+'%':'–',need!=null?'need '+need+' Q/day':'')+'</div>'+
+    '<div style="margin-top:10px">'+bar(pct(t.q,S.usmle.targetQ))+'</div>'+
+    '<details style="margin-top:10px"><summary class="small muted" style="cursor:pointer">Edit goals</summary>'+
+    '<form data-form="goals" class="form" style="margin-top:10px">'+fld('Exam date','examDate','date',S.usmle.examDate)+fld('Target questions','targetQ','number',S.usmle.targetQ,'min="100" inputmode="numeric"')+fld('Target NBME %','targetScore','number',S.usmle.targetScore,'min="40" max="100" inputmode="numeric"')+fld('Daily study goal (min)','studyGoal','number',S.usmle.studyGoal,'min="30" step="15" inputmode="numeric"')+'<button class="btn primary" type="submit">Save goals</button></form></details>'+
+  '</section>'+
+
+  '<section class="card"><div class="card-head"><h2>My USMLE journey</h2><span class="label">NBME % correct</span></div>'+
+    (nb.length?'<div class="journey" style="margin-bottom:10px">'+journey+'<span class="arrow">→</span><span class="match">MATCH</span></div>':'')+ecg()+
+    '<form data-form="nbme" class="form" style="margin-top:12px">'+fld('Exam','name','text','','placeholder="NBME 28" required')+fld('Score %','score','number','','min="0" max="100" inputmode="decimal" required')+fld('Date','date','date',TODAY)+fld('Weak areas from the score report','weak','text','','placeholder="Renal, biostatistics"')+'<button class="btn primary" type="submit">Add score</button></form>'+
+    (nb.length?'<div class="scroll-x" style="margin-top:8px"><table><thead><tr><th>Exam</th><th>Date</th><th class="num-c">Score</th><th></th><th></th></tr></thead><tbody>'+nb.slice().reverse().map(n=>'<tr><td>'+esc(n.name)+'</td><td>'+esc(fmtDate(n.date))+'</td><td class="num-c mono">'+n.score+'%</td><td><button type="button" class="btn small" data-act="askPrefill" data-q="'+esc('I got '+n.score+'% on '+n.name+(n.weak?' (weak areas: '+n.weak+')':'')+'. What should I focus on over the next 2 weeks?')+'">Analyze</button></td><td>'+delBtn('usmle.nbme',n.id,n.name)+'</td></tr>').join('')+'</tbody></table></div>':'')+
+  '</section>'+
+
+  '<section class="card"><div class="card-head"><h2>Weak topics</h2><span class="label">from your UWorld log</span></div>'+
+    (weak.length?'<div class="stack">'+weak.map(x=>'<div class="stack" style="gap:6px"><div class="row between"><span>'+esc(x.name)+'</span><span class="mono small">'+x.p+'% · '+x.q+' Q</span></div>'+bar(x.p,toneFor(x.p))+'</div>').join('')+'</div>':'<div class="empty">Log at least 20 questions in a system to see it here.</div>')+
+    '<div style="margin-top:10px"><button type="button" class="btn small" data-act="askPrefill" data-q="Here are my weak systems. Build me a 3-day plan to fix them.">Plan a fix with Claude</button></div>'+
+  '</section>'+
+
+  '<section class="card"><div class="card-head"><h2>Log a UWorld block</h2></div>'+
+    '<form data-form="uw" class="form">'+sel('System','system',SYSTEMS)+fld('Questions','q','number','40','min="1" inputmode="numeric" required')+fld('Correct','c','number','','min="0" inputmode="numeric" required')+fld('Date','date','date',TODAY)+'<button class="btn primary" type="submit">Log block</button></form>'+
+    (recent.length?'<div class="list" style="margin-top:12px">'+recent.map(x=>'<div class="item"><div class="grow"><b>'+esc(x.system)+'</b><div class="small muted">'+esc(fmtDate(x.date))+' · '+x.c+' / '+x.q+'</div></div><span class="pill '+toneFor(pct(x.c,x.q))+'">'+pct(x.c,x.q)+'%</span>'+delBtn('usmle.uw',x.id,x.system)+'</div>').join('')+'</div>':'')+
+  '</section>'+
+
+  '<section class="card"><div class="card-head"><h2>Anki / revision</h2><span class="pill '+(streak?'good':'')+'">'+streak+'-day streak</span></div>'+
+    '<div class="week" style="margin-bottom:10px">'+weekKeys().map((k,i)=>'<div class="d'+(wk[i]?' hit':'')+(k===TODAY?' today':'')+'">'+fmtDate(k,{weekday:'narrow'})+'<b>'+wk[i]+'</b></div>').join('')+'</div>'+
+    '<form data-form="anki" class="form">'+fld('Cards reviewed today','anki','number',(S.days[TODAY]||{}).anki||'','min="0" inputmode="numeric" required')+'<button class="btn primary" type="submit">Save</button></form>'+
+  '</section>';
+};
+FORMS.goals=f=>{Object.assign(S.usmle,{examDate:f.examDate,targetQ:+f.targetQ||3000,targetScore:+f.targetScore||75,studyGoal:+f.studyGoal||240});commit('Goals saved')};
+FORMS.nbme=f=>{S.usmle.nbme.push({id:uid(),date:f.date||TODAY,name:f.name.trim(),score:clamp(+f.score,0,100),weak:(f.weak||'').trim()});commit('Score added')};
+FORMS.uw=f=>{const q=+f.q,c=clamp(+f.c,0,q);if(!q)return;S.usmle.uw.push({id:uid(),date:f.date||TODAY,system:f.system,q,c});commit('Block logged')};
+FORMS.anki=f=>{day().anki=+f.anki||0;commit('Saved')};
+/* ---------- School ---------- */
+const findSj=id=>S.school.subjects.find(s=>s.id===id);
+ACT.toggleTopic=el=>{const s=findSj(el.dataset.sj),t=s&&s.topics.find(x=>x.id===el.dataset.id);if(t){t.done=el.checked;commit()}};
+ACT.delTopic=el=>{const s=findSj(el.dataset.sj);if(s){s.topics=s.topics.filter(x=>x.id!==el.dataset.id);commit()}};
+const uploadMsg=e=>({too_large:'That file is too large.',unsupported_type:'Use a PDF or an image.',quota_or_state:'Storage for this page is full.',rate_limited:'Wait a moment, then try again.'}[e&&e.code]||'Upload failed. Try again.');
+const fileUi=(s,t)=>{
+  const fs=t.files||[];
+  return '<div class="stack" style="margin-top:10px;gap:8px">'+
+    (fs.length?'<div class="list">'+fs.map(f=>'<div class="item"><a class="grow" href="/_blob/'+esc(f.id)+'" target="_blank" rel="noopener">'+esc(f.name)+'</a><button type="button" class="icon-btn" data-act="delFile" data-sj="'+s.id+'" data-id="'+t.id+'" data-fid="'+esc(f.id)+'" aria-label="Remove file"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>').join('')+'</div>':'')+
+    (assetsApi?'<div class="field"><label for="u_'+t.id+'">Attach a PDF or image</label><input id="u_'+t.id+'" type="file" accept="application/pdf,image/png,image/jpeg,image/webp" data-change="attachFile" data-sj="'+s.id+'" data-id="'+t.id+'"></div>':'')+'</div>';
+};
+ACT.attachFile=async el=>{
+  const f=el.files&&el.files[0];if(!f||!assetsApi)return;
+  if(f.size>20*1024*1024){toast('That file is over 20 MB.');return}
+  toast('Uploading...');
+  try{
+    const type=f.type||(/\.pdf$/i.test(f.name)?'application/pdf':'');
+    const r=await assetsApi.upload(f,{type});
+    const s=findSj(el.dataset.sj),t=s&&s.topics.find(x=>x.id===el.dataset.id);
+    if(t){(t.files=t.files||[]).push({id:r.id,name:f.name});commit('Attached')}
+  }catch(e){toast(uploadMsg(e))}
+};
+ACT.delFile=async el=>{
+  const s=findSj(el.dataset.sj),t=s&&s.topics.find(x=>x.id===el.dataset.id);if(!t)return;
+  t.files=(t.files||[]).filter(f=>f.id!==el.dataset.fid);commit('Removed');
+  if(assetsApi){try{await assetsApi.delete(el.dataset.fid)}catch(e){}}
+};
+VIEWS.school=()=>{
+  const p=schoolProgress();
+  const ev=S.school.events.slice().sort((a,b)=>a.date<b.date?-1:1).filter(e=>daysBetween(TODAY,e.date)>=-1);
+  const evRow=e=>{const n=daysBetween(TODAY,e.date);return '<div class="item"><div class="grow"><b>'+esc(e.title)+'</b><div class="small muted">'+esc(fmtDate(e.date,{weekday:'short',month:'short',day:'numeric'}))+' · '+esc(e.type)+'</div></div><span class="pill '+(e.type==='Exam'&&n<=7?'warn':'')+'">'+(n<=0?'today':'in '+n+'d')+'</span>'+delBtn('school.events',e.id,e.title)+'</div>'};
+  const subj=S.school.subjects.map(s=>{
+    const d=s.topics.filter(t=>t.done).length,sp=pct(d,s.topics.length);
+    return '<section class="card"><div class="card-head"><h2>'+esc(s.name)+'</h2><span class="pill '+toneFor(sp)+'">'+sp+'%</span></div>'+bar(sp,toneFor(sp))+
+      '<div class="list" style="margin-top:12px">'+(s.topics.length?s.topics.map(t=>{
+        const has=t.note||t.link||(t.files&&t.files.length);
+        return '<div class="item" style="align-items:flex-start;flex-wrap:wrap"><input type="checkbox" id="c_'+t.id+'" data-change="toggleTopic" data-sj="'+s.id+'" data-id="'+t.id+'"'+(t.done?' checked':'')+' style="margin-top:2px" aria-label="Done"><label for="c_'+t.id+'" class="grow'+(t.done?' done-text':'')+'">'+esc(t.t)+'</label>'+(has?'<span class="pill" title="Has notes">note</span>':'')+'<button type="button" class="icon-btn" data-act="delTopic" data-sj="'+s.id+'" data-id="'+t.id+'" aria-label="Delete topic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg></button>'+
+          '<details style="flex-basis:100%;margin-left:32px"><summary class="small muted" style="cursor:pointer">Notes and link</summary><form data-form="topicnote" class="stack" style="margin-top:8px"><input type="hidden" name="sj" value="'+s.id+'"><input type="hidden" name="id" value="'+t.id+'"><div class="field"><label for="n_'+t.id+'">Notes</label><textarea id="n_'+t.id+'" name="note">'+esc(t.note)+'</textarea></div>'+fld('PDF or notes link','link','text',t.link,'placeholder="https://..."')+'<div><button class="btn small primary" type="submit">Save</button>'+(t.link&&/^https?:\/\//i.test(t.link)?' <a class="btn small" style="display:inline-block;text-decoration:none" href="'+esc(t.link)+'" target="_blank" rel="noopener">Open link</a>':'')+'</div></form>'+fileUi(s,t)+'</details></div>';
+      }).join(''):'<div class="empty">No topics yet.</div>')+'</div>'+
+      '<form data-form="topic" class="row" style="margin-top:12px"><input type="hidden" name="sj" value="'+s.id+'"><input type="text" name="t" placeholder="Add a topic" aria-label="New topic in '+esc(s.name)+'" required><button class="btn primary" type="submit">Add</button></form>'+
+      '<div style="margin-top:8px"><button type="button" class="btn small ghost danger" data-act="delSubject" data-id="'+s.id+'">Remove subject</button></div></section>';
+  }).join('');
+  return ''+
+  '<section class="card"><div class="card-head"><h2>Curriculum covered</h2><span class="num" style="font-size:26px">'+p.p+'%</span></div>'+bar(p.p,toneFor(p.p))+'<div class="small muted" style="margin-top:8px">'+p.done+' of '+p.total+' topics across '+S.school.subjects.length+' subjects</div></section>'+
+  '<section class="card"><div class="card-head"><h2>Lectures and exams</h2></div>'+
+    (ev.length?'<div class="list">'+ev.map(evRow).join('')+'</div>':'<div class="empty">No upcoming dates. Add your next lecture or exam.</div>')+
+    '<form data-form="event" class="form" style="margin-top:12px">'+fld('Title','title','text','','placeholder="Medicine OSCE" required')+fld('Date','date','date',TODAY,'required')+sel('Type','type',['Exam','Lecture','Rotation','Other'])+'<button class="btn primary" type="submit">Add</button></form></section>'+
+  subj+
+  '<section class="card"><h2 style="margin-bottom:10px">Add a subject</h2><form data-form="subject" class="row"><input type="text" name="name" placeholder="For example OB/GYN" aria-label="Subject name" required><button class="btn primary" type="submit">Add</button></form></section>';
+};
+FORMS.event=f=>{S.school.events.push({id:uid(),title:f.title.trim(),date:f.date,type:f.type});commit('Added')};
+FORMS.subject=f=>{S.school.subjects.push({id:uid(),name:f.name.trim(),topics:[]});commit('Subject added')};
+FORMS.topic=f=>{const s=findSj(f.sj);if(s){s.topics.push({id:uid(),t:f.t.trim(),done:false,note:'',link:''});commit()}};
+FORMS.topicnote=f=>{const s=findSj(f.sj),t=s&&s.topics.find(x=>x.id===f.id);if(t){t.note=f.note;t.link=f.link.trim();commit('Saved')}};
+ACT.delSubject=el=>{S.school.subjects=S.school.subjects.filter(s=>s.id!==el.dataset.id);commit()};
+/* ---------- US Road ---------- */
+const NEXT={todo:'doing',doing:'done',done:'todo'};
+const STAT_TONE={todo:'',doing:'warn',done:'good'};
+ACT.cycleStage=el=>{const s=S.road.stages.find(x=>x.id===el.dataset.id);if(s){s.status=NEXT[s.status];commit()}};
+ACT.usceStatus=el=>{const u=S.road.usce.find(x=>x.id===el.dataset.id);if(u){u.status=el.value;commit()}};
+ACT.visaTrack=el=>{S.road.visa.track=el.value;commit()};
+ACT.toggleVisa=el=>{const x=S.road.visa.items.find(i=>i.id===el.dataset.id);if(x){x.done=el.checked;commit()}};
+const USCE_STATUS=['Planning','Applied','Accepted','Done','Declined'];
+VIEWS.road=()=>{
+  const st=S.road.stages,done=st.filter(s=>s.status==='done').length,cur=st.find(s=>s.status==='doing')||st.find(s=>s.status==='todo');
+  const sal=S.road.states.filter(s=>+s.salary>0).sort((a,b)=>b.salary-a.salary);
+  return ''+
+  '<section class="card"><div class="card-head"><h2>Road to residency</h2><span class="pill">'+done+' of '+st.length+' done</span></div>'+bar(pct(done,st.length))+
+    (cur?'<div class="small muted" style="margin:8px 0 4px">Now: <b style="color:var(--ink)">'+esc(cur.name)+'</b>'+(cur.date?' · target '+esc(fmtDate(cur.date,{month:'short',day:'numeric',year:'numeric'})):'')+'</div>':'')+
+    '<div class="list" style="margin-top:12px">'+st.map((s,i)=>'<div class="item" style="align-items:flex-start;flex-wrap:wrap"><span class="mono small muted" style="width:20px;padding-top:3px">'+(i+1)+'</span><div class="grow"><b>'+esc(s.name)+'</b>'+(s.date?'<div class="small muted">'+esc(fmtDate(s.date,{month:'short',day:'numeric',year:'numeric'}))+'</div>':'')+(s.notes?'<div class="small" style="margin-top:2px">'+esc(s.notes)+'</div>':'')+'</div><button type="button" class="pill '+STAT_TONE[s.status]+'" style="border:0;cursor:pointer" data-act="cycleStage" data-id="'+s.id+'" aria-label="'+esc(s.name)+' status: '+s.status+'. Tap to change.">'+s.status+'</button>'+
+      '<details style="flex-basis:100%;margin-left:32px"><summary class="small muted" style="cursor:pointer">Date and notes</summary><form data-form="stage" class="form" style="margin-top:8px"><input type="hidden" name="id" value="'+s.id+'">'+fld('Target date','date','date',s.date)+fld('Notes','notes','text',s.notes)+'<button class="btn small primary" type="submit">Save</button></form></details></div>').join('')+'</div></section>'+
+
+  '<section class="card"><div class="card-head"><h2>Observerships and USCE</h2></div>'+
+    (S.road.usce.length?'<div class="list">'+S.road.usce.map(u=>'<div class="item"><div class="grow"><b>'+esc(u.place)+'</b><div class="small muted">'+esc(u.type)+(u.state?' · '+esc(u.state):'')+'</div></div><select data-change="usceStatus" data-id="'+u.id+'" aria-label="Status for '+esc(u.place)+'" style="width:auto">'+USCE_STATUS.map(o=>'<option'+(o===u.status?' selected':'')+'>'+o+'</option>').join('')+'</select>'+delBtn('road.usce',u.id,u.place)+'</div>').join('')+'</div>':'<div class="empty">No applications yet. Add the first program you want to contact.</div>')+
+    '<form data-form="usce" class="form" style="margin-top:12px">'+fld('Hospital or program','place','text','','required')+sel('Type','type',['Observership','Clerkship','Research','Externship'])+fld('State','state','text','','placeholder="TX" maxlength="20"')+'<button class="btn primary" type="submit">Add</button></form></section>'+
+
+  '<section class="card"><div class="card-head"><h2>States I am considering</h2></div>'+
+    (S.road.states.length?'<div class="stack">'+S.road.states.map(s=>'<details class="card" style="background:var(--surface-2);padding:10px 12px"><summary style="cursor:pointer;font-weight:600">'+esc(s.name)+(+s.salary>0?' <span class="muted mono small">· '+usd(s.salary)+'</span>':'')+'</summary><form data-form="stateEdit" class="stack" style="margin-top:10px"><input type="hidden" name="id" value="'+s.id+'">'+fld('PGY-1 salary (USD)','salary','number',s.salary,'min="0" inputmode="numeric"')+'<div class="field"><label for="r_'+s.id+'">Requirements for IMGs (check the state medical board)</label><textarea id="r_'+s.id+'" name="req">'+esc(s.req)+'</textarea></div><div class="field"><label for="m_'+s.id+'">Notes</label><textarea id="m_'+s.id+'" name="notes">'+esc(s.notes)+'</textarea></div><div class="row"><button class="btn small primary" type="submit">Save</button>'+delBtn('road.states',s.id,s.name)+'</div></form></details>').join('')+'</div>':'<div class="empty">Add the states you are weighing.</div>')+
+    '<form data-form="state" class="row" style="margin-top:12px"><input type="text" name="name" placeholder="Add a state" aria-label="State name" required><button class="btn primary" type="submit">Add</button></form>'+
+    (sal.length>1?'<div class="scroll-x" style="margin-top:12px"><table><thead><tr><th>State</th><th class="num-c">PGY-1 salary</th></tr></thead><tbody>'+sal.map(s=>'<tr><td>'+esc(s.name)+'</td><td class="num-c mono">'+usd(s.salary)+'</td></tr>').join('')+'</tbody></table></div>':'')+
+    '<div style="margin-top:10px"><button type="button" class="btn small" data-act="askPrefill" data-q="Compare the states I am considering for an international medical graduate. Tell me what to verify on each state medical board website.">Compare with Claude</button></div></section>'+
+
+  '<section class="card"><div class="card-head"><h2>Visa and waiver</h2><select data-change="visaTrack" aria-label="Visa track" style="width:auto">'+['J-1','H-1B','Undecided'].map(o=>'<option'+(o===S.road.visa.track?' selected':'')+'>'+o+'</option>').join('')+'</select></div>'+
+    '<div class="list">'+S.road.visa.items.map(i=>'<div class="item"><input type="checkbox" id="vi_'+i.id+'" data-change="toggleVisa" data-id="'+i.id+'"'+(i.done?' checked':'')+' aria-label="Done"><label for="vi_'+i.id+'" class="grow'+(i.done?' done-text':'')+'">'+esc(i.t)+'</label>'+delBtn('road.visa.items',i.id,i.t)+'</div>').join('')+'</div>'+
+    '<form data-form="visaItem" class="row" style="margin-top:12px"><input type="text" name="t" placeholder="Add a visa or waiver step" aria-label="New visa step" required><button class="btn primary" type="submit">Add</button></form></section>';
+};
+FORMS.stage=f=>{const s=S.road.stages.find(x=>x.id===f.id);if(s){s.date=f.date;s.notes=f.notes;commit('Saved')}};
+FORMS.usce=f=>{S.road.usce.push({id:uid(),place:f.place.trim(),type:f.type,state:f.state.trim(),status:'Planning'});commit('Added')};
+FORMS.state=f=>{S.road.states.push({id:uid(),name:f.name.trim(),req:'',salary:'',notes:''});commit()};
+FORMS.stateEdit=f=>{const s=S.road.states.find(x=>x.id===f.id);if(s){s.salary=f.salary;s.req=f.req;s.notes=f.notes;commit('Saved')}};
+FORMS.visaItem=f=>{S.road.visa.items.push({id:uid(),t:f.t.trim(),done:false});commit()};
+/* ---------- Money ---------- */
+ACT.togglePaid=el=>{const x=S.money.items.find(i=>i.id===el.dataset.id);if(x){x.paid=el.checked;commit()}};
+const COSTS=['UWorld','NBME','Exam fees','Travel','USCE / observership','Visa','Other'];
+VIEWS.money=()=>{
+  const m=S.money,saved=savedTotal(),gap=Math.max(0,m.target-saved),left=examLeft();
+  const months=left>0?Math.max(1,left/30):null;
+  const planned=plannedTotal(),paid=paidTotal();
+  const cats={};m.items.forEach(i=>{cats[i.cat]=(cats[i.cat]||0)+(+i.cost||0)});
+  const recent=m.saved.slice().sort((a,b)=>a.date<b.date?1:-1).slice(0,6);
+  return ''+
+  '<section class="card"><div class="card-head"><h2>USMLE fund</h2><span class="pill '+toneFor(pct(saved,m.target))+'">'+pct(saved,m.target)+'%</span></div>'+
+    '<div class="row between" style="margin-bottom:8px"><span class="num" style="font-size:30px">'+usd(saved)+'</span><span class="muted">of '+usd(m.target)+'</span></div>'+bar(pct(saved,m.target),toneFor(pct(saved,m.target)))+
+    '<div class="grid2" style="margin-top:12px">'+tile('Still to save',usd(gap),months?'about '+usd(gap/months)+' per month':'set an exam date')+tile('Planned costs',usd(planned),usd(paid)+' paid')+'</div>'+
+    '<form data-form="saving" class="form" style="margin-top:12px">'+fld('Add savings (USD)','amt','number','','min="1" inputmode="decimal" required')+'<button class="btn primary" type="submit">Add to fund</button></form>'+
+    (recent.length?'<div class="list" style="margin-top:12px">'+recent.map(x=>'<div class="item"><div class="grow">'+esc(fmtDate(x.date,{month:'short',day:'numeric',year:'numeric'}))+'</div><span class="mono">+'+usd(x.amt)+'</span>'+delBtn('money.saved',x.id,'savings entry')+'</div>').join('')+'</div>':'')+
+    '<details style="margin-top:10px"><summary class="small muted" style="cursor:pointer">Change target</summary><form data-form="target" class="form" style="margin-top:8px">'+fld('Target amount (USD)','target','number',m.target,'min="0" inputmode="numeric"')+'<button class="btn primary" type="submit">Save</button></form></details>'+
+  '</section>'+
+
+  '<section class="card"><div class="card-head"><h2>Planned costs</h2><span class="muted mono small">'+usd(planned-paid)+' left to pay</span></div>'+
+    (m.items.length?'<div class="list">'+m.items.map(i=>'<div class="item"><input type="checkbox" id="p_'+i.id+'" data-change="togglePaid" data-id="'+i.id+'"'+(i.paid?' checked':'')+' aria-label="Paid"><label for="p_'+i.id+'" class="grow"><span class="'+(i.paid?'done-text':'')+'">'+esc(i.label)+'</span><div class="small muted">'+esc(i.cat)+(i.paid?' · paid':'')+'</div></label><span class="mono">'+usd(i.cost)+'</span>'+delBtn('money.items',i.id,i.label)+'</div>').join('')+'</div>':'<div class="empty">No costs yet. Add UWorld, exam fees, travel and visa costs.</div>')+
+    '<form data-form="cost" class="form" style="margin-top:12px">'+sel('Category','cat',COSTS)+fld('What for','label','text','','required placeholder="Step 2 CK fee"')+fld('Cost (USD)','cost','number','','min="0" inputmode="decimal" required')+'<button class="btn primary" type="submit">Add cost</button></form></section>'+
+
+  (Object.keys(cats).length?'<section class="card"><div class="card-head"><h2>By category</h2></div><div class="stack">'+Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(c=>'<div class="stack" style="gap:6px"><div class="row between"><span>'+esc(c[0])+'</span><span class="mono small">'+usd(c[1])+'</span></div>'+bar(pct(c[1],planned))+'</div>').join('')+'</div></section>':'');
+};
+FORMS.target=f=>{S.money.target=+f.target||0;commit('Saved')};
+FORMS.cost=f=>{S.money.items.push({id:uid(),cat:f.cat,label:f.label.trim(),cost:+f.cost||0,paid:false});commit('Cost added')};
+/* ---------- Gym ---------- */
+let gymTab='train',gymDay=null;
+const lastSets=(day,ex)=>{
+  const logs=S.gym.logs.filter(l=>l.day===day&&l.date<TODAY&&l.sets[ex]&&l.sets[ex].length).sort((a,b)=>a.date<b.date?1:-1);
+  return logs[0]?{date:logs[0].date,sets:logs[0].sets[ex]}:null;
+};
+const todayLog=day=>S.gym.logs.find(l=>l.date===TODAY&&l.day===day);
+function hint(last){
+  if(!last)return '';
+  const top=last.sets.slice().sort((a,b)=>b.w-a.w||b.r-a.r)[0];
+  const next=top.r>=10?(top.w+2.5)+' kg × 8':top.w+' kg × '+(top.r+1);
+  return 'Last: '+top.w+' kg × '+top.r+' ('+fmtDate(last.date)+'). Try '+next+'.';
+}
+ACT.gymTab=el=>{gymTab=el.dataset.v;render()};
+ACT.gymDay=el=>{gymDay=el.value;render()};
+ACT.delSet=el=>{const l=S.gym.logs.find(x=>x.id===el.dataset.log);if(l){l.sets[el.dataset.ex].splice(+el.dataset.i,1);commit()}};
+function spark(arr,key,unit){
+  if(arr.length<2)return '';
+  const W=320,H=80,p=8,v=arr.map(x=>+x[key]),mn=Math.min(...v)-0.5,mx=Math.max(...v)+0.5;
+  const X=i=>p+(W-2*p)*i/(arr.length-1),Y=n=>H-p-(H-2*p)*(n-mn)/(mx-mn);
+  return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto" role="img" aria-label="'+unit+' trend"><path d="'+v.map((n,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(n).toFixed(1)).join(' ')+'" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="stroke:var(--accent)"/><circle cx="'+X(v.length-1).toFixed(1)+'" cy="'+Y(v[v.length-1]).toFixed(1)+'" r="4" style="fill:var(--accent)"/></svg>';
+}
+function shrink(file,max){return new Promise((res,rej)=>{
+  const url=URL.createObjectURL(file),img=new Image();
+  img.onload=()=>{const k=Math.min(1,max/Math.max(img.width,img.height)),c=document.createElement('canvas');c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);c.getContext('2d').drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);c.toBlob(b=>b?res(b):rej(new Error('encode')),'image/jpeg',0.82)};
+  img.onerror=()=>{URL.revokeObjectURL(url);rej(new Error('decode'))};
+  img.src=url;
+})}
+ACT.addPhoto=async el=>{
+  const f=el.files&&el.files[0];if(!f||!assetsApi)return;
+  toast('Uploading...');
+  try{
+    const b=await shrink(f,1080),r=await assetsApi.upload(b,{type:'image/jpeg'});
+    (S.gym.photos=S.gym.photos||[]).push({id:uid(),date:TODAY,asset:r.id});commit('Photo added');
+  }catch(e){toast(uploadMsg(e&&e.code?e:{}))}
+};
+ACT.delPhoto=async el=>{
+  const p=(S.gym.photos||[]).find(x=>x.id===el.dataset.id);if(!p)return;
+  S.gym.photos=S.gym.photos.filter(x=>x.id!==p.id);commit('Photo removed');
+  if(assetsApi){try{await assetsApi.delete(p.asset)}catch(e){}}
+};
+const photoCard=()=>{
+  const ph=(S.gym.photos||[]).slice().sort((a,c)=>a.date<c.date?-1:1);
+  const img=p=>'<figure><img src="/_blob/'+esc(p.asset)+'" loading="lazy" alt="Progress photo, '+esc(fmtDate(p.date))+'"><figcaption><span>'+esc(fmtDate(p.date,{month:'short',day:'numeric'}))+'</span><button type="button" class="icon-btn" style="padding:2px" data-act="delPhoto" data-id="'+p.id+'" aria-label="Delete photo"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg></button></figcaption></figure>';
+  return '<section class="card"><div class="card-head"><h2>Progress photos</h2><span class="label">private</span></div>'+
+    (ph.length>=2?'<div class="two" style="margin-bottom:12px">'+[ph[0],ph[ph.length-1]].map(p=>'<figure style="margin:0;min-width:0"><img src="/_blob/'+esc(p.asset)+'" alt="'+(p===ph[0]?'First':'Latest')+' photo" style="display:block;width:100%;max-width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:var(--r-sm)"><figcaption class="small muted" style="margin-top:4px">'+(p===ph[0]?'First':'Latest')+' · '+esc(fmtDate(p.date))+'</figcaption></figure>').join('')+'</div>':'')+
+    (ph.length?'<div class="photos">'+ph.slice().reverse().map(img).join('')+'</div>':'<div class="empty">No photos yet. Add one to start your timeline.</div>')+
+    (assetsApi?'<div class="field" style="margin-top:12px"><label for="photoIn">Add a photo</label><input id="photoIn" type="file" accept="image/*" data-change="addPhoto"></div>':'<div class="small muted" style="margin-top:10px">Photo upload is not available here.</div>')+'</section>';
+};
+VIEWS.gym=()=>{
+  const g=S.gym,d=S.days[TODAY]||{};
+  const seg='<div class="seg" role="group" aria-label="Gym sections">'+[['train','Train'],['body','Body'],['plan','Plan']].map(x=>'<button type="button" data-act="gymTab" data-v="'+x[0]+'" aria-pressed="'+(gymTab===x[0])+'">'+x[1]+'</button>').join('')+'</div>';
+  const nut='<section class="card"><div class="card-head"><h2>Nutrition today</h2><span class="label">target '+g.kcal+' kcal</span></div><div class="stack">'+
+    '<div class="stack" style="gap:6px"><div class="row between"><span>Protein</span><span class="mono small">'+(d.protein||0)+' / '+g.protein+' g</span></div>'+bar(pct(d.protein||0,g.protein),toneFor(pct(d.protein||0,g.protein)))+'</div>'+
+    '<div class="stack" style="gap:6px"><div class="row between"><span>Calories</span><span class="mono small">'+(d.kcal||0)+' / '+g.kcal+'</span></div>'+bar(pct(d.kcal||0,g.kcal))+'</div></div>'+
+    '<form data-form="meal" class="form" style="margin-top:12px">'+fld('Protein (g)','protein','number','','min="0" inputmode="numeric"')+fld('Calories','kcal','number','','min="0" inputmode="numeric"')+'<button class="btn primary" type="submit">Add meal</button></form></section>';
+  if(gymTab==='train'){
+    if(!gymDay||!g.days.find(x=>x.name===gymDay))gymDay=(d.workout&&g.days.find(x=>x.name===d.workout))?d.workout:(g.days[0]||{}).name;
+    const dayObj=g.days.find(x=>x.name===gymDay),log=dayObj&&todayLog(gymDay);
+    return seg+'<section class="card"><div class="card-head"><h2>Workout</h2><select data-change="gymDay" aria-label="Workout day" style="width:auto">'+g.days.map(x=>'<option'+(x.name===gymDay?' selected':'')+'>'+esc(x.name)+'</option>').join('')+'</select></div>'+
+      (dayObj?'<div class="stack">'+dayObj.ex.map((ex,i)=>{
+        const sets=(log&&log.sets[ex])||[],last=lastSets(gymDay,ex);
+        return '<div class="stack" style="gap:8px;padding-top:12px;border-top:1px solid var(--line)"><div><b>'+esc(ex)+'</b>'+(last?'<div class="small muted">'+esc(hint(last))+'</div>':'<div class="small muted">No previous session.</div>')+'</div>'+
+          (sets.length?'<div class="wrapflex">'+sets.map((s,j)=>'<span class="pill good" style="gap:6px">'+s.w+' × '+s.r+'<button type="button" class="icon-btn" style="padding:0;color:inherit" data-act="delSet" data-log="'+log.id+'" data-ex="'+esc(ex)+'" data-i="'+j+'" aria-label="Remove set"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg></button></span>').join('')+'</div>':'')+
+          '<form data-form="set" class="row" style="align-items:flex-end"><input type="hidden" name="day" value="'+esc(gymDay)+'"><input type="hidden" name="ex" value="'+esc(ex)+'">'+
+          '<div class="field grow"><label for="sw'+i+'">Weight (kg)</label><input id="sw'+i+'" name="w" type="number" step="0.5" min="0" inputmode="decimal" required value="'+(last?last.sets[0].w:'')+'"></div>'+
+          '<div class="field grow"><label for="sr'+i+'">Reps</label><input id="sr'+i+'" name="r" type="number" min="1" inputmode="numeric" required></div><button class="btn primary" type="submit">Add set</button></form></div>';
+      }).join('')+'</div>':'<div class="empty">Add a workout day in Plan.</div>')+'</section>'+nut;
+  }
+  if(gymTab==='body'){
+    const b=g.body.slice().sort((a,c)=>a.date<c.date?-1:1),first=b[0],lastB=b[b.length-1];
+    return seg+'<section class="card"><div class="card-head"><h2>Body</h2>'+(first&&lastB&&b.length>1?'<span class="pill">'+((lastB.kg-first.kg)>0?'+':'')+(lastB.kg-first.kg).toFixed(1)+' kg</span>':'')+'</div>'+
+      (b.length>1?spark(b,'kg','Body weight'):'<div class="empty">Add two entries to see the trend.</div>')+
+      '<form data-form="body" class="form" style="margin-top:12px">'+fld('Date','date','date',TODAY)+fld('Weight (kg)','kg','number','','step="0.1" inputmode="decimal" required')+fld('Waist (cm)','waist','number','','step="0.5" inputmode="decimal"')+'<button class="btn primary" type="submit">Add</button></form>'+
+      (b.length?'<div class="scroll-x" style="margin-top:8px"><table><thead><tr><th>Date</th><th class="num-c">kg</th><th class="num-c">Waist</th><th></th></tr></thead><tbody>'+b.slice().reverse().slice(0,8).map(x=>'<tr><td>'+esc(fmtDate(x.date))+'</td><td class="num-c mono">'+x.kg+'</td><td class="num-c mono">'+(x.waist||'–')+'</td><td>'+delBtn('gym.body',x.id,'entry')+'</td></tr>').join('')+'</tbody></table></div>':'')+'</section>'+photoCard()+nut;
+  }
+  return seg+'<section class="card"><h2 style="margin-bottom:10px">Targets</h2><form data-form="gymTargets" class="form">'+fld('Calories','kcal','number',g.kcal,'min="1000" inputmode="numeric"')+fld('Protein (g)','protein','number',g.protein,'min="30" inputmode="numeric"')+fld('Workouts per week','perWeek','number',g.perWeek,'min="1" max="7" inputmode="numeric"')+'<button class="btn primary" type="submit">Save</button></form></section>'+
+    g.days.map(x=>'<section class="card"><div class="card-head"><h2>'+esc(x.name)+'</h2><button type="button" class="btn small ghost danger" data-act="delGymDay" data-id="'+x.id+'">Remove day</button></div><div class="list">'+x.ex.map((e,i)=>'<div class="item"><div class="grow">'+esc(e)+'</div><button type="button" class="icon-btn" data-act="delEx" data-id="'+x.id+'" data-i="'+i+'" aria-label="Remove '+esc(e)+'"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>').join('')+'</div><form data-form="addEx" class="row" style="margin-top:10px"><input type="hidden" name="id" value="'+x.id+'"><input type="text" name="e" placeholder="Add an exercise" aria-label="New exercise for '+esc(x.name)+'" required><button class="btn primary" type="submit">Add</button></form></section>').join('')+
+    '<section class="card"><h2 style="margin-bottom:10px">Add a workout day</h2><form data-form="gymDayNew" class="row"><input type="text" name="name" placeholder="For example Upper" aria-label="Day name" required><button class="btn primary" type="submit">Add</button></form></section>';
+};
+FORMS.set=f=>{
+  let log=todayLog(f.day);
+  if(!log){log={id:uid(),date:TODAY,day:f.day,sets:{}};S.gym.logs.push(log)}
+  (log.sets[f.ex]=log.sets[f.ex]||[]).push({w:+f.w,r:+f.r});
+  day().workout=f.day;commit();
+};
+FORMS.body=f=>{S.gym.body.push({id:uid(),date:f.date||TODAY,kg:+f.kg,waist:+f.waist||0});commit('Saved')};
+FORMS.gymTargets=f=>{Object.assign(S.gym,{kcal:+f.kcal||2300,protein:+f.protein||170,perWeek:clamp(+f.perWeek||5,1,7)});commit('Saved')};
+FORMS.addEx=f=>{const x=S.gym.days.find(d=>d.id===f.id);if(x){x.ex.push(f.e.trim());commit()}};
+FORMS.gymDayNew=f=>{S.gym.days.push({id:uid(),name:f.name.trim(),ex:[]});commit()};
+ACT.delEx=el=>{const x=S.gym.days.find(d=>d.id===el.dataset.id);if(x){x.ex.splice(+el.dataset.i,1);commit()}};
+ACT.delGymDay=el=>{S.gym.days=S.gym.days.filter(d=>d.id!==el.dataset.id);gymDay=null;commit()};
+/* ---------- Ask Claude ---------- */
+let samp=null,askCtl=null;
+function prevWeek(){
+  const pk=weekKeys().map(k=>addDays(k,-7));
+  return{studyMin:sum(pk,studyOn),workouts:pk.filter(k=>(S.days[k]||{}).workout).length,uwAccuracyPct:uwAccRange(pk[0],pk[6]),savedUSD:sum(S.money.saved.filter(x=>x.date>=pk[0]&&x.date<=pk[6]),x=>x.amt)};
+}
+function aiContext(){
+  const t=uwTotal(),w=weekly(),sp=schoolProgress();
+  return JSON.stringify({
+    today:TODAY,
+    usmle:{examDate:S.usmle.examDate||null,daysLeft:examLeft(),questionsDone:t.q,accuracyPct:pct(t.c,t.q),targetQuestions:S.usmle.targetQ,targetNbmePct:S.usmle.targetScore,dailyStudyGoalMin:S.usmle.studyGoal,
+      weakSystems:weakSystems().map(x=>({system:x.name,pct:x.p,questions:x.q})),
+      systems:systemStats().map(x=>({system:x.name,pct:x.p,questions:x.q})),
+      nbme:S.usmle.nbme.slice().sort((a,b)=>a.date<b.date?-1:1).map(x=>({name:x.name,date:x.date,pct:x.score,weakAreas:x.weak||null}))},
+    week:{studyMin:w.studied,studyGoalMin:w.goal,uwAccuracyPct:w.thisAcc,accuracyChange:w.delta,workouts:w.sessions,workoutsPlanned:S.gym.perWeek,proteinDaysOnTargetPct:w.nutPct,savedThisWeekUSD:w.fund,previousWeek:prevWeek()},
+    school:{coveredPct:sp.p,subjects:S.school.subjects.map(s=>({name:s.name,done:s.topics.filter(t=>t.done).length,total:s.topics.length,openTopics:s.topics.filter(t=>!t.done).map(t=>t.t).slice(0,8)})),upcoming:S.school.events.filter(e=>daysBetween(TODAY,e.date)>=0).slice(0,5).map(e=>({title:e.title,date:e.date,type:e.type}))},
+    road:{stages:S.road.stages.map(s=>({name:s.name,status:s.status,date:s.date||null})),states:S.road.states.map(s=>({name:s.name,salaryUSD:s.salary||null})),visaTrack:S.road.visa.track},
+    money:{savedUSD:savedTotal(),targetUSD:S.money.target,plannedCostsUSD:plannedTotal()},
+    gym:{kcalTarget:S.gym.kcal,proteinTarget:S.gym.protein},
+    sampleData:S.sample});
+}
+function openAsk(q){
+  sheet('<div class="row between"><h2 style="font-size:18px">Ask Claude</h2><button type="button" class="icon-btn" data-act="closeSheet" aria-label="Close"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>'+
+    '<div class="body"><div class="field"><label for="askQ">Your question (English or Arabic)</label><textarea id="askQ" placeholder="I have 3 hours today. What should I study?"></textarea></div>'+
+    '<div class="row"><button type="button" class="btn primary" id="askGo" data-act="runAsk">Ask</button><button type="button" class="btn" id="askStop" data-act="stopAsk" hidden>Stop</button></div>'+
+    '<div class="answer" id="askOut" hidden></div>'+
+    '<div class="small muted">Claude reads the numbers you logged here. Check US licensing, visa and state rules on official sites before you act.</div></div>');
+  const t=$('#askQ');t.value=q||'';t.focus();
+}
+ACT.askPrefill=el=>openAsk(el.dataset.q);
+document.addEventListener('click',e=>{if(e.target.closest('#askBtn'))openAsk('')});
+ACT.stopAsk=()=>{if(askCtl)askCtl.abort()};
+window.__abort=()=>{if(askCtl)askCtl.abort()};
+ACT.runAsk=async()=>{
+  const q=($('#askQ')||{}).value;if(!q||!q.trim()||!samp)return;
+  const out=$('#askOut'),go=$('#askGo'),stop=$('#askStop');
+  out.hidden=false;out.textContent='Thinking...';go.disabled=true;stop.hidden=false;
+  askCtl=new AbortController();
+  const prompt='You are the coach inside MedTrack, the personal dashboard of Dr. Mohamed, a fifth-year Egyptian medical student preparing for the USMLE and a US residency.\n'+
+    'Use his logged numbers below. Lead with the answer, then give short numbered steps with real numbers (hours, question counts, topics). Keep it under 250 words unless he asks for more. Plain text only, no markdown symbols. Reply in the language of his question (Egyptian Arabic if he writes Arabic, keeping medical terms in English). If sampleData is true, say the numbers are examples. For US licensing, visa or state rules, say what to verify with ECFMG or the state medical board instead of stating requirements as certain.\n\nHIS DATA (JSON):\n'+aiContext()+'\n\nQUESTION:\n'+q.trim();
+  try{
+    await samp(prompt,{signal:askCtl.signal,cache:false,onText:({text})=>{if(document.body.contains(out))out.textContent=text}});
+  }catch(e){
+    if(!document.body.contains(out))return;
+    if(e&&e.code==='cancelled'){if(!out.textContent||out.textContent==='Thinking...')out.hidden=true;return}
+    const m={not_granted:'Claude access was not allowed for this page.',rate_limited:'Too many requests. Try again in a minute.',sampling_disabled:'Claude is not available on this account.'}[e&&e.code]||'That did not work. Try again.';
+    out.textContent=((e&&e.text)?e.text+'\n\n':'')+m;
+  }finally{
+    if(document.body.contains(go)){go.disabled=false;stop.hidden=true}
+    askCtl=null;
+  }
+};
+
+/* ---------- Backup ---------- */
+let bkArmed=false;
+ACT.openBackup=()=>{
+  bkArmed=false;
+  sheet('<div class="row between"><h2 style="font-size:18px">Backup and restore</h2><button type="button" class="icon-btn" data-act="closeSheet" aria-label="Close"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div><div class="body"><div class="small muted">Copy this text and keep it in Notes or email it to yourself. To restore, paste a backup here and tap Restore. Photos and attached files are not included.</div><textarea id="bkText" spellcheck="false" style="min-height:160px;font-family:var(--f-mono);font-size:12px"></textarea><div class="wrapflex"><button type="button" class="btn primary" data-act="bkCopy">Copy</button>'+(downloadsApi?'<button type="button" class="btn" data-act="bkSave">Save file</button>':'')+'<button type="button" class="btn danger" data-act="bkRestore">Restore from text</button></div><div class="small muted" id="bkMsg" role="status"></div></div>');
+  $('#bkText').value=JSON.stringify(S);
+};
+ACT.bkCopy=async()=>{const ta=$('#bkText');try{await navigator.clipboard.writeText(ta.value);toast('Copied')}catch(e){ta.select();toast('Select the text and copy it')}};
+ACT.bkSave=()=>{downloadsApi.save({filename:'medtrack-backup-'+TODAY+'.json',data:JSON.stringify(S,null,1)}).then(()=>toast('Saved')).catch(e=>{if(!e||e.code!=='declined')toast('Could not save the file')})};
+ACT.bkRestore=el=>{
+  const ta=$('#bkText'),msg=$('#bkMsg');let o;
+  try{o=JSON.parse(ta.value)}catch(e){msg.textContent='That text is not a valid backup.';return}
+  if(!(o&&o.v===1&&o.usmle&&o.school&&o.road&&o.money&&o.gym&&o.days)){msg.textContent='That text is not a MedTrack backup.';return}
+  if(!bkArmed){bkArmed=true;el.textContent='Tap again to replace your data';msg.textContent='This replaces everything on this device.';return}
+  S=o;S.updatedAt=Date.now();bkArmed=false;$('#overlay').innerHTML='';commit('Restored');
+};
+
+/* ---------- Plan my day ---------- */
+let pendingPlan=[];
+FORMS.planDay=async f=>{
+  if(!samp)return;
+  const hrs=clamp(+f.hours||3,0.5,14);
+  pendingPlan=[];
+  sheet('<div class="row between"><h2 style="font-size:18px">Plan for '+hrs+' h</h2><button type="button" class="icon-btn" data-act="closeSheet" aria-label="Close"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div><div class="body"><div class="answer" id="planOut">Thinking...</div><div class="row"><button type="button" class="btn primary" id="planAdd" data-act="applyPlan" hidden>Add to today</button></div></div>');
+  askCtl=new AbortController();
+  const prompt='You plan study days for Dr. Mohamed, a fifth-year Egyptian medical student preparing for the USMLE. He has '+hrs+' hours today ('+Math.round(hrs*60)+' minutes). Use his data below. Put his weakest systems first, include one UWorld block with a question count, one short revision or Anki task, and a school topic only if a rotation exam is close. Reply with only a JSON array of 4 to 7 objects like {"t":"UWorld Renal block, 40 Q","min":60}. "t" is a short task in English with medical terms, "min" is whole minutes, and the minutes add up to about '+Math.round(hrs*60)+'.\n\nHIS DATA (JSON):\n'+aiContext();
+  try{
+    const arr=await samp.json(prompt,{signal:askCtl.signal,cache:false});
+    const out=$('#planOut');if(!out||!document.body.contains(out))return;
+    pendingPlan=(Array.isArray(arr)?arr:[]).filter(x=>x&&typeof x.t==='string'&&x.t.trim()).slice(0,8).map(x=>({t:x.t.trim().slice(0,120),min:clamp(Math.round(+x.min)||30,5,600)}));
+    if(!pendingPlan.length){out.textContent='No plan came back. Try again.';return}
+    out.innerHTML='<div class="list">'+pendingPlan.map(x=>'<div class="item"><div class="grow">'+esc(x.t)+'</div><span class="mono small muted">'+hm(x.min)+'</span></div>').join('')+'</div>';
+    $('#planAdd').hidden=false;
+  }catch(e){
+    const out=$('#planOut');if(!out||!document.body.contains(out)||(e&&e.code==='cancelled'))return;
+    out.textContent=({not_granted:'Claude access was not allowed for this page.',rate_limited:'Too many requests. Try again in a minute.',invalid_json:'The plan came back in the wrong shape. Try again.'}[e&&e.code])||'That did not work. Try again.';
+  }finally{askCtl=null}
+};
+ACT.applyPlan=()=>{
+  pendingPlan.forEach(x=>S.usmle.plan.push({id:uid(),date:TODAY,t:x.t+' ('+hm(x.min)+')',done:false}));
+  const n=pendingPlan.length;pendingPlan=[];
+  $('#overlay').innerHTML='';commit(n+' tasks added to today');
+};
+
+/* ---------- start ---------- */
+render();
+(async function connect(){
+  const cl=window.claude;if(!cl||!cl.use)return;
+  cl.use('downloads').then(d=>{if(d)downloadsApi=d}).catch(()=>{});
+  cl.use('assets').then(a=>{if(a){assetsApi=a;render()}}).catch(()=>{});
+  cl.use('sample').then(f=>{if(f){samp=f;$('#askBtn').hidden=false;render()}}).catch(()=>{});
+  try{
+    const [db,user]=await Promise.all([cl.use('db'),cl.use('user')]);
+    if(!db||!user)return;
+    const id=await user.id();if(!id)return;
+    dbDoc=db.doc('data/users/'+id+'/state');
+    const snap=await dbDoc.get();
+    if(snap.exists&&(snap.data().updatedAt||0)>(S.updatedAt||0)){
+      S=JSON.parse(JSON.stringify(snap.data()));persistLocal();syncText='Saved to your account';render();
+    }else{dirty=true;await flush()}
+    paintSub();
+    dbDoc.onSnapshot(sn=>{
+      if(sn.metadata.hasPendingWrites||!sn.exists)return;
+      const r=sn.data();
+      if((r.updatedAt||0)>(S.updatedAt||0)){S=JSON.parse(JSON.stringify(r));persistLocal();render()}
+    },()=>{});
+  }catch(e){syncText='Saved on this device only';paintSub()}
+})();
+
+})();
+if('serviceWorker' in navigator&&location.protocol.indexOf('http')===0){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})})}
+</script>
+</body></html>
